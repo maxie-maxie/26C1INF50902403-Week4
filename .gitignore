@@ -1,18 +1,18 @@
-# Exclude everything outside Group project week 4
-/*
-!/Group project week 4/
-!/.gitignore
+# Ignore other courses/weeks, agent configs, and orchestration/draft working folders
+/.agents/
+/Group project week 3/
+/Group project week 4/
+/Lab 2/
+/Project/
+/Networking.rar
+/_orchestration/
+/Group drop/
+/01_drafts/
+/02_revised/
+/03_intake/
 
-# Inside Group project week 4, only track generated deliverables and source material
-/Group project week 4/*
-!/Group project week 4/00_source/
-!/Group project week 4/01_generated/
-!/Group project week 4/Chapter 4 - TASK.pdf
-!/Group project week 4/Phan_cong_nhom_Chuong4.docx
-!/Group project week 4/Mô phỏng ARP và định tuyến - Hành trình của một gói tin.html
-
-# Ignore transient test outputs, Word lock files, and node_modules inside 01_generated
+# Ignore transient test outputs, Word lock files, and node_modules
 ~$*
-/Group project week 4/01_generated/app/node_modules/
-/Group project week 4/01_generated/app/tests/artifacts/
-/Group project week 4/01_generated/app/tests/results.json
+/app/node_modules/
+/app/tests/artifacts/
+/app/tests/results.json

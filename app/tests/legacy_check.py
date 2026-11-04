@@ -22,7 +22,7 @@ from playwright.sync_api import sync_playwright
 
 
 APP_DIR = Path(__file__).resolve().parents[1]
-WORKSPACE = Path(__file__).resolve().parents[3]
+WORKSPACE = Path(__file__).resolve().parents[2]
 SCREENSHOT_DIR = WORKSPACE / ("_" + "orches" + "tration") / "scratch" / ("t" + "01")
 
 SCRIPT_ORDER = [

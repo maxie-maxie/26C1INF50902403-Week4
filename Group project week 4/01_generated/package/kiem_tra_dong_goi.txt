@@ -1,4 +1,0 @@
-Tệp đóng gói: Bo_Mo_Phong_ARP_Dinh_Tuyen_Chuong4.zip
-Kích thước: 2143636 bytes
-SHA-256: E59714B8E5BADA3F46B21AC71E5A1F4F7FF4EA8DC25D98FBCA99BB1FEAC212B7
-Kiểm tra chạy ngoại tuyến (offline file://): ĐẠT (3 biến thể kịch bản, 0 lỗi console)
