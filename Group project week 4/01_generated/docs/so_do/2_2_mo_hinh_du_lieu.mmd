@@ -1,0 +1,67 @@
+classDiagram
+  class Topology {
+    +String id
+    +String name
+    +List~String~ subnets
+    +List~Device~ devices
+    +List~Link~ links
+  }
+  class Device {
+    +String id
+    +String type
+    +String label
+    +String role
+    +List~Interface~ interfaces
+    +Map arpCache
+    +List~Route~ routingTable
+    +Object position
+  }
+  class Interface {
+    +String id
+    +String name
+    +String ip
+    +Number prefixLen
+    +String mac
+    +Boolean up
+    +String gateway
+  }
+  class Link {
+    +String id
+    +Object a
+    +Object b
+    +Boolean up
+    +Number cost
+    +String kind
+  }
+  class Route {
+    +String prefix
+    +Number prefixLen
+    +String nextHop
+    +String outIf
+    +Number metric
+    +String source
+    +Number adminDistance
+  }
+  class Scenario {
+    +String id
+    +String group
+    +String title
+    +Object topology
+    +String topologyRef
+    +Object baseline
+    +List variants
+    +List traffic
+    +Object protocol
+    +Object challenge
+    +List tests
+  }
+
+  Topology "1" *-- "nhiều" Device : devices
+  Topology "1" *-- "nhiều" Link : links
+  Device "1" *-- "nhiều" Interface : interfaces
+  Device "1" o-- "nhiều" Route : routingTable
+  Link "1" --> "2" Interface : hai đầu a và b
+  Scenario ..> Topology : topology hoặc topologyRef
+  Scenario ..> Device : mutations thay đổi trạng thái
+
+  note for Scenario "variants: [{id, label, mutations[]}];\nbaseline: {mutations[]}; mỗi mutations là một phép\nlink.down / link.up / link.cost / if.set / route.add /\nroute.del / arp.set / arp.clear / device.add / device.remove"

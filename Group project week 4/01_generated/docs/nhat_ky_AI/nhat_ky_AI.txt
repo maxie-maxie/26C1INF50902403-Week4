@@ -1,0 +1,108 @@
+# Nhật ký sử dụng trợ lý AI trong phát triển hệ thống mô phỏng mạng
+
+Tài liệu này ghi nhận toàn bộ quá trình sử dụng các công cụ trợ lý AI trong dự án xây dựng hệ thống mô phỏng mạng tương tác (Chương 4: ARP và định tuyến mạng), bao gồm các câu lệnh trọng tâm, lỗi phát hiện, cách khắc phục, chức năng mở rộng, cùng các giả định và giới hạn kỹ thuật.
+
+---
+
+## 1. Các câu lệnh (prompt) quan trọng thực tế đã sử dụng
+
+Trong quá trình phát triển hệ thống, nhóm đã sử dụng nhiều công cụ trợ lý AI (DeepSeek, GLM, Gemini, Claude) thông qua các giao diện dòng lệnh và môi trường phát triển tự động. Bảng dưới đây tổng hợp 6 câu lệnh cốt lõi.
+
+| STT | Trợ lý AI | Mục đích yêu cầu | Nội dung câu lệnh trọng tâm (rút gọn) | Kết quả thu được |
+|:---:|:---:|:---|:---|:---|
+| 1 | Gemini | Khởi tạo mô hình dữ liệu mạng thuần và bộ xác thực cấu trúc | Thiết kế mô hình dữ liệu mạng thuần túy không phụ thuộc DOM trong `model.js` cho thiết bị, giao diện, liên kết, tuyến đường và kịch bản mô phỏng. Cung cấp hàm kiểm tra cấu trúc `validateScenario` và hàm đột biến trạng thái `applyMutations` bảo đảm tính bất biến của trạng thái gốc. | Tệp `model.js`, lược đồ dữ liệu JSON Schema (Draft 2020-12) kèm 144 mô tả chi tiết bằng tiếng Việt, và bộ kiểm thử đơn vị với 29 ca kiểm thử tự động đạt 100%. |
+| 2 | Gemini | Xây dựng thuật toán xử lý mạng cốt lõi và thuật toán LPM | Viết thư viện tiện ích mạng IPv4 thuần trong `net.js`: kiểm tra tính hợp lệ của IP, tính toán mặt nạ mạng, thuật toán Longest Prefix Match (LPM) có cơ chế phân xử tie-break theo administrative distance và metric, cùng hàm sinh địa chỉ MAC tất định với tiền tố `02:`. | Thư viện `net.js` và bộ kiểm thử `net.test.js` với 23 kiểm thử đơn vị độc lập, giải quyết chính xác bài toán so khớp tiền tố dài nhất và phân cấp độ ưu tiên bảng định tuyến. |
+| 3 | Claude | Xây dựng động cơ mô phỏng hai chiều và vết thực thi tiền tính | Hiện thực hóa động cơ mô phỏng mạng `engine.js` tạo vết thực thi tiền tính (precomputed trace) cho gói tin ping hai chiều (ICMP Echo Request và Reply). Mô phỏng đủ 8 giai đoạn: phân giải ARP từng chặng, chuyển tiếp router, giảm TTL, đóng lại khung L2, phát hiện vòng lặp hoặc hết tuyến; hỗ trợ đối tượng điều khiển `createPlayer` cho phép tiến/lùi từng bước. | Động cơ `engine.js` (1.250 dòng) và kho lưu trữ `store.js`, vượt qua 53 kiểm thử đơn vị tự động, bảo đảm tính tất định và hỗ trợ hoàn hảo tính năng tua lại bước mô phỏng. |
+| 4 | GLM | Tái cấu trúc vỏ ứng dụng hai chế độ xem và bus sự kiện | Tái cấu trúc giao diện ứng dụng web (`shell.js`, `bus.js`, `registry.js`, `app.css`), tích hợp mô phỏng gốc dưới dạng tab "Hành trình cơ bản" mà không can thiệp vào mã cũ, song song với tab "Phòng thí nghiệm" điều khiển động cơ mới. Thiết lập bus truyền thông điệp pub/sub và hệ thống registry đăng ký kịch bản, giao thức, bảng điều khiển. | Vỏ ứng dụng hoàn chỉnh chạy trực tiếp qua giao thức `file://` với 0 lỗi console, chuyển đổi mượt mà giữa hai chế độ xem, đồng bộ bảng thông tin Packet Inspector và thanh điều khiển bước. |
+| 5 | GLM | Xây dựng kịch bản chuẩn hai router và các biến thể sự cố | Xây dựng kịch bản mẫu `ref_hai_router.js` gồm mạng LAN văn phòng kết nối qua 2 router đến LAN máy chủ. Hỗ trợ 3 biến thể: hoạt động bình thường qua tuyến chính, ngắt liên kết chính chuyển sang tuyến dự phòng, và sự cố thiếu tuyến về trên router đích; kèm bài toán điều tra sự cố. | Thư viện kịch bản nạp thành công qua cơ chế registry, được kiểm chứng chính xác chuỗi thiết bị đi qua và phát hiện sự cố, vượt qua toàn bộ 75 kiểm thử tích hợp. |
+| 6 | Claude | Thiết lập bộ kiểm thử tất định và kiểm thử khói trình duyệt | Tạo bộ kiểm thử tất định `tests/run_all.js` thực thi toàn bộ kịch bản và xuất kết quả `results.json` có mã băm SHA-256 cố định để đối soát. Viết kịch bản kiểm thử khói Playwright (`smoke_test.py`) kiểm tra hoạt động trực tiếp trên trình duyệt web. | Bộ kiểm thử chạy qua 9 ca kiểm thử với mã băm SHA-256 trùng khớp tuyệt đối qua các lần chạy độc lập; bộ kiểm thử trình duyệt xác nhận các thao tác chạy, dừng, tiến, lùi và hiển thị giao diện đạt 100%. |
+
+---
+
+## 2. Các lỗi và điểm chưa chính xác phát hiện trong đầu ra của AI
+
+Trong quá trình để trợ lý AI tạo sinh mã nguồn và cấu hình, nhóm đã phát hiện các điểm sai lệch kỹ thuật cụ thể sau:
+
+### Lỗi 1: Sai cú pháp địa chỉ MAC dạng thập lục phân trong thư viện kịch bản
+- **Giai đoạn phát sinh:** Khi soạn thư viện kịch bản mạng mẫu.
+- **Mô tả chi tiết:** Trợ lý AI tạo khung dữ liệu kịch bản ban đầu có chứa địa chỉ MAC không hợp lệ, cụ thể xuất hiện chuỗi `ax:10:00:00:00:01` thay vì các ký tự thập lục phân (0–9, a–f). Ký tự `x` không thuộc bảng số hex.
+- **Hậu quả kỹ thuật:** Nếu đưa vào thực thi, chuỗi này sẽ làm sai lệch bộ phân tích gói tin L2, khiến hàm băm MAC hoặc logic so khớp bảng ARP bị lỗi bất thường trong quá trình chuyển tiếp khung tin.
+
+### Lỗi 2: Xung đột luật CSS làm mất cảnh báo trực quan khi ngắt liên kết
+- **Giai đoạn phát sinh:** Khi dựng giao diện phòng thí nghiệm và bảng điều khiển trực quan.
+- **Mô tả chi tiết:** Trong tệp kiểu dáng `app.css`, luật định dạng chặng đang truyền tin hiện tại (`.link.current-hop`, màu xanh teal) có cùng độ ưu tiên đặc hiệu và được đặt sau luật biểu diễn liên kết bị đứt (`.link.link-down`, màu đỏ cảnh báo nét đứt). Khi gói tin di chuyển tới một liên kết đang hỏng, lớp `.current-hop` ghi đè hoàn toàn màu đỏ của `.link-down`, làm đường truyền hiển thị màu xanh bình thường.
+- **Hậu quả kỹ thuật:** Giao diện phản ánh sai lệch trạng thái vật lý của mạng, gây hiểu nhầm cho người học khi quan sát hiện tượng mất kết nối trên sơ đồ mạng trực quan.
+
+### Lỗi bổ sung: Sai cấu hình topo trong kiểm thử động cơ ban đầu
+- **Giai đoạn phát sinh:** Khi hoàn thiện bộ kiểm thử đơn vị cho động cơ mô phỏng.
+- **Mô tả chi tiết:** Trợ lý AI khi sinh tệp kiểm thử `engine.test.js` đã gán nhầm gateway mặc định của trạm làm việc sang cổng giao diện của mạng LAN đối diện. Lần chạy đầu tiên phát sinh 3 ca kiểm thử thất bại do gói tin bị loại bỏ ngay tại chặng đầu tiên.
+
+---
+
+## 3. Quy trình kiểm chứng và khắc phục lỗi
+
+Nhóm đã áp dụng quy trình kiểm định đa tầng độc lập với đầu ra của AI để phát hiện và xử lý các lỗi trên:
+
+1. **Kiểm tra tính hợp lệ bằng bộ xác thực dữ liệu tĩnh (Validator):**
+   - Đối với Lỗi 1, nhóm sử dụng hàm `validateScenario` trong `model.js` chứa biểu thức chính quy chuẩn kiểm tra địa chỉ MAC: `^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$`.
+   - Lệnh kiểm tra chạy độc lập bằng dòng lệnh Node.js đã phát hiện lỗi cú pháp `ax:` ngay lập tức trước khi mã nguồn được tích hợp.
+   - Khắc phục: Chuẩn hóa lại toàn bộ địa chỉ MAC trong kịch bản theo cơ chế tất định (bắt đầu bằng `02:`). Bộ xác thực sau đó báo cáo 6 kịch bản hợp lệ, 0 lỗi.
+
+2. **Soát xét trực quan bằng ảnh chụp màn hình kiểm thử tự động (Visual Inspection):**
+   - Đối với Lỗi 2, kịch bản kiểm thử khói Playwright (`tests/smoke_test.py`) tự động chụp ảnh màn hình giao diện tại từng bước mô phỏng và lưu vào thư mục kiểm định.
+   - Khi đối chiếu ảnh chụp biến thể "Ngắt liên kết chính", nhóm phát hiện liên kết giữa hai router hiển thị màu xanh thay vì màu đỏ đứt đoạn.
+   - Khắc phục: Bổ sung luật CSS kết hợp trong `app.css`: `#viewLab .lab-edge.down.hot { stroke: var(--sim-red, #d94848); }`. Liên kết hỏng giữ nét đứt `8 8` từ luật `.down`; luật `.down.hot` giữ màu đỏ khi liên kết đó cũng là bước hiện tại. Ảnh chụp kiểm thử sau đó xác nhận liên kết hỏng luôn giữ đúng màu đỏ cảnh báo.
+
+3. **Thực thi bộ kiểm thử đơn vị và kiểm thử hồi quy tất định (Test Re-run):**
+   - Đối với Lỗi topo kiểm thử, nhóm chạy bộ kiểm thử chuẩn `node --test` trên toàn bộ thư mục `tests`.
+   - Kết quả thất bại ban đầu (3 failed) chỉ rõ vị trí gán sai gateway. Nhóm đã hiệu chỉnh lại bảng định tuyến và địa chỉ gateway trong kịch bản kiểm thử.
+   - Chạy lại bộ kiểm thử tự động: toàn bộ 75/75 kiểm thử đơn vị đạt kết quả xanh, bảo đảm tính toàn vẹn của động cơ.
+
+---
+
+## 4. Danh sách các chức năng tự thiết kế và mở rộng
+
+Công cụ AI hỗ trợ sinh mã khung; nhóm định hướng kiến trúc và tự hoàn thiện các chức năng nâng cao:
+
+1. **Động cơ mô phỏng vết thực thi tiền tính (Precomputed Trace Engine) và bộ điều khiển tua bước (Step-Back):**
+   - Động cơ sinh toàn bộ danh sách trạng thái `steps[]` và sự kiện `events[]` ngay khi kích hoạt hành động mạng.
+   - Mỗi bước lưu trữ bản sao sâu `stateAfter`. Nhờ đó, hàm `stepBack()` khôi phục tức thì `steps[i-1].stateAfter` mà không cần chạy mô phỏng lại, bảo đảm tính tất định và khả năng phân tích sự cố ngược thời gian.
+2. **Mô hình sự kiện với cờ `confirmed` biểu diễn trạng thái "nghi vấn":**
+   - Bổ sung trường boolean `confirmed` trong cấu trúc dữ liệu sự kiện mạng.
+   - Khi router chưa nhận đủ phản hồi hoặc đưa ra phán đoán điều tra sự cố (ví dụ: nghi vấn router kế tiếp thiếu tuyến về), sự kiện được đánh dấu `confirmed: false` và hiển thị nhãn "nghi vấn" trên bảng sự kiện, giúp người học phân biệt giữa dữ kiện mạng đã xác thực và giả thuyết suy luận.
+3. **Bộ API cắm ghép (Plugin API) mở rộng kịch bản và giao thức:**
+   - Xây dựng hệ thống đăng ký thông qua đối tượng toàn cục: `NetLab.registry.registerScenario`, `registerProtocol(kind, { computeRoutes })`, và `registerPanel(id, { mount, onStep, onEvent, onReset })`.
+   - Cho phép các nhóm thành viên bổ sung độc lập kịch bản mạng mới, thuật toán định tuyến tùy chỉnh (RIP, OSPF, BGP) và bảng điều khiển trực quan mà không cần chỉnh sửa mã nguồn lõi.
+4. **Kiến trúc vỏ ứng dụng hai chế độ xem (Two-View App Shell):**
+   - Thiết kế giao diện chuyển đổi tab (`#viewTabs`, `#tabLegacy`, `#tabLab`), bao bọc và cô lập hoàn toàn ứng dụng ban đầu trong `#viewLegacy` và giao diện phòng thí nghiệm kịch bản trong `#viewLab`.
+   - Bảo toàn 100% mã nguồn và phong cách giao diện mô phỏng ban đầu, không gây xung đột định dạng CSS hay biến toàn cục.
+5. **Bộ công cụ kiểm thử tất định (Deterministic Test Harness):**
+   - Xây dựng công cụ kiểm thử độc lập `tests/run_all.js` thực thi 9 kịch bản tự động trên nền Node.js, xuất kết quả ra tệp `results.json`.
+   - Tính toán và đối chiếu mã băm SHA-256 của kết quả mô phỏng, bảo đảm mọi lần chạy trên các môi trường khác nhau đều cho ra kết quả đồng nhất tuyệt đối.
+
+---
+
+## 5. Bản ghi chú các giả định và giới hạn của mô phỏng
+
+Mô phỏng mạng được xây dựng tập trung vào mục tiêu sư phạm trực quan cho các cơ chế ARP và định tuyến IP. Hệ thống mô hình hóa chính xác các hành vi logic cốt lõi nhưng đồng thời đặt ra các giả định và giới hạn kỹ thuật cụ thể (đã được đối chiếu với mã nguồn thực tế tại tài liệu giả định mô phỏng):
+
+1. **Thời gian mô phỏng rời rạc (`tSim`), không phải thời gian thực:** Mọi nhãn thời gian đều tính theo mili giây mô phỏng thông qua hàm `TraceContext.prototype.tick` trong `engine.js` (bước nhảy cố định `DELAY_STEP_MS = 10`), không sử dụng đồng hồ hệ thống `Date.now()`.
+2. **Không có mô hình hàng đợi, mất gói ngẫu nhiên hay tranh chấp băng thông:** Siêu dữ liệu liên kết `delayMs` và `bandwidthMbps` trong `model.js` chỉ phục vụ hiển thị. Hàm chuyển tiếp `simulateHop` và `routerForward` trong `engine.js` không mô phỏng độ trễ hàng đợi buffer hay tỷ lệ rớt gói ngẫu nhiên.
+3. **Bộ nhớ đệm ARP (ARP cache) không tự hết hạn:** Một mục ARP cache chỉ thay đổi khi có đột biến `arp.set`/`arp.clear` hoặc sau khi phân giải ARP thành công (`arpSetMutation` trong `engine.js`). Không có cơ chế đếm thời gian sống (TTL) để xóa mục cache tự động.
+4. **Chỉ hỗ trợ không gian địa chỉ IPv4 unicast:** Toàn bộ logic phân tích địa chỉ dùng `parseIp` và `isValidIp` trong `net.js`, kiểm tra đúng 4 octet thập phân. Hệ thống không xử lý địa chỉ IPv6 hay địa chỉ multicast.
+5. **Không mô phỏng cơ chế biên dịch địa chỉ mạng (NAT):** Địa chỉ IP nguồn và đích (`l3.srcIp`, `l3.dstIp`) được giữ nguyên vẹn qua tất cả các chặng router trong hàm `routerForward` (`engine.js`).
+6. **Bản tin ICMP được trừu tượng hóa tối giản:** Gói ping được đánh dấu bằng cờ `proto: 'icmp'`. Khi TTL giảm về 0 hoặc gặp vòng lặp, động cơ ghi nhận sự kiện `ttl.expired` và dừng chuyển tiếp chứ không tạo bản tin ICMP Time-Exceeded gửi ngược lại nguồn.
+7. **Tính toán giao thức định tuyến động mang tính khái niệm:** Động cơ không tự tính toán hội tụ mạng thực tế. Bảng định tuyến được cung cấp sẵn từ topo hoặc do hàm `computeRoutes` của module đăng ký qua `registerProtocol` (`registry.js`). Động cơ chỉ thuần túy tra khớp tiền tố dài nhất qua hàm `net.lpm` (`net.js`).
+8. **Tuyến tĩnh không tự động rút khi liên kết hỏng:** Khi liên kết chuyển sang trạng thái ngắt (`link.down`), tuyến đường qua liên kết đó vẫn tồn tại trong bảng định tuyến `routingTable`. Động cơ tra LPM trước, sau đó nếu phát hiện liên kết vật lý hỏng thì loại bỏ gói tin tại chặng đó (`engine.js`).
+9. **Thiết bị chuyển mạch (Switch) hoạt động ở mức đơn giản hóa:** Switch chuyển tiếp khung tin trong cùng VLAN mà không cần bảng học địa chỉ MAC và không chạy giao thức chống vòng lặp Spanning Tree Protocol (STP) (`engine.js`).
+10. **Không hỗ trợ phân mảnh gói tin IP (Fragmentation):** Động cơ không kiểm tra MTU của liên kết; gói tin không bị chia nhỏ khi qua các môi trường truyền dẫn khác nhau.
+11. **Địa chỉ MAC được sinh tất định từ hàm băm:** Khi giao diện không cấu hình sẵn MAC, hàm `deterministicMac` trong `model.js` tạo địa chỉ MAC cố định bắt đầu bằng `02:` dựa trên hàm băm chuỗi tên thiết bị và cổng.
+12. **Giá trị TTL mặc định cố định:** Mọi gói tin mới đều khởi tạo giá trị `ttlBefore = DEFAULT_TTL = 64` (`engine.js`), giảm 1 đơn vị qua mỗi router.
+
+---
+
+## 6. Bổ sung từ các phần khác (chờ tích hợp)
+
+*(Phần này để trống; sẽ bổ sung nhật ký sử dụng AI của các mô-đun kịch bản thành phần khi hoàn thành.)*
+
+---

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ARP và định tuyến · Phòng thí nghiệm mạng</title>
+  <link rel="stylesheet" href="css/legacy.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body class="app-shell" data-view="legacy">
+  <header class="app-header">
+    <div class="app-header__inner">
+      <div class="eyebrow">Mô phỏng tương tác · Mạng máy tính</div>
+      <h1>ARP và định tuyến: Hành trình của một gói tin</h1>
+      <p>Từ câu hỏi “máy cần gửi cho ai trên liên kết hiện tại?” đến cách router chuyển tiếp gói tin đi qua nhiều mạng.
+        Chọn từng bước để quan sát địa chỉ IP, địa chỉ MAC và quyết định định tuyến.</p>
+      <div class="chips">
+        <span class="chip">Slide 2–3</span>
+        <span class="chip">ARP Request / Reply</span>
+        <span class="chip">Routing &amp; Forwarding</span>
+        <span class="chip">Có thể dùng offline</span>
+      </div>
+    </div>
+  </header>
+  <nav id="viewTabs" role="tablist" aria-label="Chọn chế độ xem">
+    <button id="tabLegacy" class="tab-btn active" type="button" role="tab" aria-selected="true" aria-controls="viewLegacy">Hành trình cơ bản</button>
+    <button id="tabLab" class="tab-btn" type="button" role="tab" aria-selected="false" aria-controls="viewLab" tabindex="-1">Phòng thí nghiệm</button>
+  </nav>
+
+  <main>
+    <section id="viewLegacy" class="view active" role="tabpanel" aria-labelledby="tabLegacy">
+      <div class="wrap">
+        <div class="layout">
+          <div class="panel">
+          <div class="panelhead">
+            <div>
+              <h2>Sơ đồ mạng tương tác</h2><small>Thiết bị nguồn ở TP.HCM · máy chủ mô phỏng ở Hà Nội</small>
+            </div>
+            <div class="controls"><button id="resetBtn">↻ Làm lại</button><button id="prevBtn" disabled="" style="opacity: 0.45;">← Trước</button><button id="nextBtn" class="primary" style="opacity: 1;">Tiếp theo →</button></div>
+          </div>
+          <div class="top-controls">
+            <label for="destMode">Đích cần truy cập</label>
+            <select id="destMode">
+              <option value="remote">Máy chủ ở Hà Nội — khác subnet</option>
+              <option value="local">Máy in trong LAN — cùng subnet</option>
+            </select>
+            <button id="failureBtn" class="danger" title="Mô phỏng sự cố tuyến chính và quan sát đường dự phòng">⚡ Mô phỏng đứt tuyến chính</button>
+          </div>
+          <div class="diagram-wrap">
+            <svg id="network" viewBox="0 0 1100 390" role="img" aria-label="Sơ đồ laptop, switch, gateway, các router, tuyến chính và tuyến dự phòng">
+              <defs>
+                <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L6,3 L0,6 Z" fill="#0f9d91"></path>
+                </marker>
+                <marker id="arrowOrange" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L6,3 L0,6 Z" fill="#f49b38"></path>
+                </marker>
+              </defs>
+              <rect x="18" y="32" width="390" height="310" rx="20" fill="#f4f9fd" stroke="#dbe8f4" stroke-dasharray="5 6"></rect>
+              <text x="38" y="57" font-size="12" fill="#70869a" font-weight="800">MẠNG LAN NGUỒN</text>
+              <rect x="710" y="32" width="370" height="310" rx="20" fill="#f8fafc" stroke="#e0e8f0" stroke-dasharray="5 6"></rect>
+              <text x="730" y="57" font-size="12" fill="#70869a" font-weight="800">MẠNG TRUNG GIAN / ĐÍCH</text>
+              <path id="e-lan" class="edge " d="M155 184 L245 184"></path>
+              <path id="e-gw" class="edge " d="M335 184 L415 184"></path>
+              <path id="e-main1" class="edge " d="M505 184 L585 110"></path>
+              <path id="e-main2" class="edge " d="M675 110 L755 184"></path>
+              <path id="e-main3" class="edge " d="M845 184 L930 184"></path>
+              <path id="e-alt1" class="edge " d="M505 212 L585 292"></path>
+              <path id="e-alt2" class="edge " d="M675 292 L755 212"></path>
+              <text id="lbl-lan" class="edge-label" x="200" y="169">LAN / Wi-Fi</text><text id="lbl-gw" class="edge-label" x="375" y="169">ARP / Ethernet</text>
+              <text id="lbl-main1" class="edge-label" x="540" y="131">Tuyến chính</text><text id="lbl-main2" class="edge-label" x="716" y="131">Core network</text><text id="lbl-main3" class="edge-label" x="885" y="169">Đến máy chủ</text>
+              <text id="lbl-alt" class="edge-label" x="625" y="328">Tuyến dự phòng</text>
+              <g id="node-laptop">
+                <rect class="node active" x="65" y="143" width="90" height="82"></rect><text class="node-icon" x="110" y="174">💻</text><text class="node-title" x="110" y="195">Laptop A</text><text id="src-ip" class="node-sub" x="110" y="211">192.168.10.25</text>
+              </g>
+              <g id="node-switch">
+                <rect class="node " x="245" y="143" width="90" height="82"></rect><text class="node-icon" x="290" y="174">🔀</text><text class="node-title" x="290" y="195">Switch / AP</text><text class="node-sub" x="290" y="211">LAN cục bộ</text>
+              </g>
+              <g id="node-gw">
+                <rect class="node " x="415" y="143" width="90" height="82"></rect><text class="node-icon" x="460" y="174">🛜</text><text class="node-title" x="460" y="195">R1 / Gateway</text><text id="gw-ip" class="node-sub" x="460" y="211">192.168.10.1</text>
+              </g>
+              <g id="node-r2" style="opacity: 1;">
+                <rect class="node " x="585" y="69" width="90" height="82"></rect><text class="node-icon" x="630" y="100">🌐</text><text class="node-title" x="630" y="121">R2 · ISP</text><text class="node-sub" x="630" y="137">Next hop</text>
+              </g>
+              <g id="node-r3" style="opacity: 1;">
+                <rect class="node " x="755" y="143" width="90" height="82"></rect><text class="node-icon" x="800" y="174">🌐</text><text class="node-title" x="800" y="195">R3 · Core</text><text class="node-sub" x="800" y="211">Routing table</text>
+              </g>
+              <g id="node-r4" style="opacity: 1;">
+                <rect class="node " x="585" y="251" width="90" height="82"></rect><text class="node-icon" x="630" y="282">🧭</text><text class="node-title" x="630" y="303">R4 · Dự phòng</text><text class="node-sub" x="630" y="319">Alternate path</text>
+              </g>
+              <g id="node-server" style="opacity: 1;">
+                <rect class="node active" x="930" y="143" width="115" height="82"></rect><text class="node-icon" x="987" y="174">🗄️</text><text id="server-title" class="node-title" x="987" y="195">Máy chủ</text><text id="dest-ip" class="node-sub" x="987" y="211">203.0.113.80</text>
+              </g>
+              <g id="node-printer" style="display:none">
+                <rect class="node " x="230" y="260" width="120" height="68"></rect><text class="node-icon" x="290" y="284">🖨️</text><text class="node-title" x="290" y="304">Máy in B</text><text class="node-sub" x="290" y="319">192.168.10.50</text>
+                <path id="e-printer" class="edge " d="M290 225 L290 260" style="display: none;"></path>
+              </g>
+              <g id="packet" style="display:none">
+                <circle class="packet" cx="110" cy="100" r="13"></circle><text class="packettext" x="110" y="104">IP</text>
+              </g>
+              <g id="arpBubble" style="display:none">
+                <rect x="80" y="76" width="255" height="42" rx="11" fill="#fff2da" stroke="#f2aa4e" stroke-width="1.6"></rect>
+                <text id="arpText" x="207" y="93" font-size="11" fill="#8d5511" text-anchor="middle" font-weight="800">ARP
+                  Request · Broadcast</text><text x="207" y="107" font-size="10" fill="#8d5511" text-anchor="middle">Who
+                  has 192.168.10.1?</text>
+              </g>
+            </svg>
+          </div>
+          <div class="legend"><span><i class="line-key"></i> Tuyến đang được sử dụng</span><span><i class="line-key orange"></i> Tuyến dự phòng</span><span><i class="line-key red"></i> Liên kết
+              lỗi</span><span><i class="dot" style="background:var(--sim-orange)"></i> Gói tin đang di chuyển</span></div>
+          <div class="stage" aria-live="polite">
+            <div class="stagebar">
+              <div class="stage-no" id="stageNo">Bước 1 / 7</div>
+              <div class="controls"><button id="autoBtn">▶ Tự chạy</button></div>
+            </div>
+            <h3 id="stageTitle">1. Xác định đích đến</h3>
+            <p id="stageDesc">Laptop cần truy cập máy chủ mô phỏng ở Hà Nội. Hệ điều hành so sánh IP đích với subnet cục bộ 192.168.10.0/24.</p>
+            <ul id="stageList"><li>IP nguồn: 192.168.10.25/24</li><li>IP đích: 203.0.113.80</li><li>Đích nằm ngoài subnet nên không gửi frame trực tiếp đến máy chủ ở xa.</li></ul>
+            <div class="callout " id="stageCallout"><strong>Điểm cần nhớ:</strong> IP xác định đích ở tầng mạng. Bước tiếp theo là xác định nút kế tiếp trên liên kết cục bộ.</div>
+          </div>
+        </div>
+        <aside class="side">
+          <section class="panel">
+            <div class="sectionpad">
+              <div class="progresshead"><span>TIẾN TRÌNH MÔ PHỎNG</span><span id="progressText">1 / 7</span></div>
+              <div class="progress">
+                <div id="progressFill" style="width: 14.2857%;"></div>
+              </div>
+              <div class="mini-steps" id="miniSteps"><div class="mini-step current"><b>1</b><span>Xác định đích đến</span></div><div class="mini-step "><b>2</b><span>Chọn default gateway</span></div><div class="mini-step "><b>3</b><span>ARP Request — phát câu hỏi trong LAN</span></div><div class="mini-step "><b>4</b><span>ARP Reply — gateway trả lời</span></div><div class="mini-step "><b>5</b><span>Frame đầu tiên đi đến gateway</span></div><div class="mini-step "><b>6</b><span>Router tra tuyến và chuyển tiếp qua nhiều mạng</span></div><div class="mini-step "><b>7</b><span>Máy chủ nhận gói tin</span></div></div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panelhead">
+              <h2>Gói tin đang mang gì?</h2><small>Ví dụ minh họa</small>
+            </div>
+            <div class="sectionpad" style="padding-top:8px">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Trường</th>
+                    <th>Giá trị trong ví dụ</th>
+                  </tr>
+                </thead>
+                <tbody id="packetTable"><tr><td>IP nguồn</td><td>192.168.10.25</td></tr><tr><td>IP đích</td><td>203.0.113.80</td></tr><tr><td>MAC đích ở chặng đầu</td><td>Chưa phân giải</td></tr><tr><td>Next hop</td><td>192.168.10.1 (gateway)</td></tr></tbody>
+              </table>
+              <div class="callout good" style="margin-top:12px"><strong>Điểm mấu chốt:</strong> MAC đích là địa chỉ của
+                nút kế tiếp trên liên kết hiện tại, không phải luôn là MAC của máy chủ cuối.</div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panelhead">
+              <h2>Kiểm tra nhanh</h2><small>Chọn một đáp án</small>
+            </div>
+            <div class="sectionpad" style="padding-top:12px">
+              <div class="question" style="border:0;padding-top:0;margin-top:0">
+                <h3 id="quizQuestion">Khi máy chủ ở ngoài subnet, laptop cần ARP để tìm MAC của ai?</h3>
+                <div id="quizOptions"><button class="option" data-i="0">A. MAC của máy chủ ở Hà Nội</button><button class="option" data-i="1">B. MAC của default gateway trên LAN</button><button class="option" data-i="2">C. MAC của DNS server trong mọi trường hợp</button></div>
+                <div id="quizFeedback" class="feedback" aria-live="polite">Chọn đáp án phù hợp nhất.</div><button id="quizReset" style="margin-top:5px">Làm lại câu hỏi</button>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+      <section class="panel topology-editor" id="topologyEditor" style="margin-top:18px">
+        <div class="panelhead">
+          <div><h2>Phòng thiết kế topology tương tác</h2><small>· Chọn mô hình, quản lý thiết bị và điều chỉnh liên kết</small></div>
+          <span class="chip" style="background:#eaf3fb;color:#1769aa;border-color:#c8dff2;border-radius:99px;padding:5px 11px;font-size:12px;border:1px solid #c8dff2">Topology Lab</span>
+        </div>
+        <div class="topology-toolbar">
+          <label for="topologyPreset">Topology</label>
+          <select id="topologyPreset">
+            <option value="office">Văn phòng – LAN và Internet</option>
+            <option value="enterprise">Doanh nghiệp – 3 chi nhánh</option>
+            <option value="datacenter">Trung tâm dữ liệu</option>
+            <option value="smalllan">Mạng LAN cơ bản</option>
+            <option value="vlan">Mạng VLAN và định tuyến liên VLAN</option>
+            <option value="ring">Topology vòng (Ring)</option>
+            <option value="dualisp">Doanh nghiệp 2 ISP dự phòng</option>
+          </select>
+          <label for="newDeviceType">Thiết bị mới</label>
+          <select id="newDeviceType">
+            <option value="pc">PC / Laptop</option><option value="switch">Switch</option>
+            <option value="router">Router</option><option value="server">Server</option>
+          </select>
+          <button class="primary" id="addDeviceBtn" type="button">＋ Thêm thiết bị</button>
+          <button id="removeDeviceBtn" class="danger" type="button">Xóa thiết bị chọn</button>
+          <button id="clearTopologyBtn" class="danger" type="button" title="Xóa toàn bộ thiết bị và liên kết trong topology hiện tại">⌫ Xóa tất cả thiết bị</button>
+        </div>
+        <div class="topology-simbar">
+          <div class="topology-siminfo">
+            <strong>Mô phỏng hành trình gói tin</strong>
+            <span id="topologyStageMirror">Bước 1 / 7 · 1. Xác định đích đến</span><div class="topology-progress-track"><div id="topologyProgressFill"></div></div>
+          </div>
+          <div class="topology-simcontrols">
+            <button type="button" id="topologyResetProxy">↻ Làm lại</button>
+            <button type="button" id="topologyPrevProxy">← Trước</button>
+            <button type="button" class="primary" id="topologyNextProxy">Tiếp theo →</button>
+            <button type="button" id="topologyAutoProxy">▶ Tự chạy</button>
+            <button type="button" id="topologyFailureProxy" class="danger">⚡ Mô phỏng đứt tuyến</button>
+          </div>
+        </div>
+        <div class="topology-layout">
+          <div class="topology-canvas-wrap">
+            <div class="topology-canvas-head"><strong>Sơ đồ kết nối</strong><span><i class="status-dot up"></i> Đang hoạt động <i class="status-dot down"></i> Bị ngắt</span></div>
+            <svg id="topologyCanvas" viewBox="0 0 900 360" role="img" aria-label="Topology mạng có thể tương tác"></svg>
+            <div class="topology-legend">
+              <span><i class="legend-line main"></i> Tuyến chính</span><span><i class="legend-line backup"></i> Tuyến dự phòng</span><span><i class="legend-line broken"></i> Liên kết lỗi</span>
+            </div>
+            <section class="topo-frame-inspector" aria-live="polite" aria-label="Thông tin frame và gói tin trên topology">
+              <div class="topo-frame-head"><strong>📦 Thông tin Frame / Packet</strong><span id="topoFrameStep">Bước 1 / 7</span></div>
+              <div class="topo-frame-body"><div class="topo-frame-grid" id="topoFrameFields"></div><div class="topo-frame-note" id="topoFrameNote"></div></div>
+            </section>
+          </div>
+          <aside class="topology-side">
+            <div class="topology-card">
+              <h3>Thông tin thiết bị</h3>
+              <div id="deviceDetails" class="device-details">Chọn một thiết bị trên sơ đồ để xem thông tin.</div>
+            </div>
+            <div class="topology-card">
+              <h3>Chỉnh sửa thông tin thiết bị</h3>
+              <label for="editDeviceName">Tên thiết bị</label><input id="editDeviceName" type="text" placeholder="Tên thiết bị">
+              <label for="editDeviceIp">Địa chỉ IP / Prefix</label><input id="editDeviceIp" type="text" placeholder="192.168.1.10/24">
+              <label for="editDeviceSubnet">Subnet / VLAN</label><input id="editDeviceSubnet" type="text" placeholder="192.168.1.0/24 hoặc VLAN 10">
+              <label for="editDeviceIface">Interface hiện có</label><input id="editDeviceIface" type="text" placeholder="Fa0, G0/0...">
+              <label for="editDeviceRole">Vai trò</label><input id="editDeviceRole" type="text" placeholder="Vai trò thiết bị">
+              <button id="saveDeviceBtn" class="primary" type="button" style="width:100%">Lưu thông tin thiết bị</button>
+            </div>
+            <div class="topology-card">
+              <h3>Điều khiển liên kết</h3>
+              <label for="linkSelect">Liên kết</label><select id="linkSelect"></select>
+              <div class="link-actions"><button id="disconnectLinkBtn" class="danger" type="button">Ngắt liên kết</button><button id="restoreLinkBtn" type="button">Khôi phục</button></div>
+              <label for="linkCost">Cost liên kết</label>
+              <div class="cost-row"><input id="linkCost" type="number" min="1" max="999" value="10"><button id="saveCostBtn" class="primary" type="button">Cập nhật cost</button></div>
+              <div class="connect-controls">
+                <label for="linkFrom">Tạo liên kết mới · Thiết bị đầu</label><select id="linkFrom"></select>
+                <label for="linkFromPort">Cổng thiết bị đầu</label><select id="linkFromPort"></select>
+                <label for="linkTo">Thiết bị cuối</label><select id="linkTo"></select>
+                <label for="linkToPort">Cổng thiết bị cuối</label><select id="linkToPort"></select>
+                <button id="createLinkBtn" class="primary" type="button">＋ Tạo liên kết</button>
+              </div>
+              <p class="hint">Cost là trọng số minh họa để so sánh lựa chọn đường đi; thay đổi cost không tự mô phỏng thuật toán định tuyến thực tế.</p>
+            </div>
+            <div class="topology-card">
+              <h3>Trạng thái topology</h3>
+              <div id="topologySummary" class="topology-summary"></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+      <div class="bottomgrid">
+        <section class="panel bottom-card">
+          <h2>Đóng gói qua các tầng</h2>
+          <div class="layer"><strong>Ứng dụng</strong><span>Tạo dữ liệu / yêu cầu đến máy chủ</span></div>
+          <div class="layer"><strong>Giao vận</strong><span>TCP hoặc UDP đóng gói dữ liệu</span></div>
+          <div class="layer"><strong>Tầng mạng</strong><span>IP nguồn → IP đích</span></div>
+          <div class="layer"><strong>Liên kết</strong><span>MAC nguồn → MAC đích trên liên kết hiện tại</span></div>
+          <div class="layer"><strong>Vật lý</strong><span>Truyền bit qua Wi-Fi, Ethernet hoặc liên kết khác</span></div>
+        </section>
+        <section class="panel bottom-card">
+          <h2>Ba câu hỏi cần tự trả lời</h2>
+          <div class="layer"><strong>1 · Đích ở đâu?</strong><span>Kiểm tra IP đích có thuộc subnet cục bộ không.</span>
+          </div>
+          <div class="layer"><strong>2 · Gửi cho ai?</strong><span>Cùng subnet: MAC máy đích. Khác subnet: MAC default
+              gateway.</span></div>
+          <div class="layer"><strong>3 · Đi tiếp đâu?</strong><span>Router tra bảng chuyển tiếp, chọn giao diện hoặc next
+              hop phù hợp.</span></div>
+          <p class="note">Lưu ý: Địa chỉ 203.0.113.80 là địa chỉ dùng minh họa trong tài liệu; không đại diện cho máy chủ
+            thực tế.</p>
+        </section>
+      </div>
+      <footer>Mô phỏng học tập độc lập · Lưu thành file HTML và mở bằng trình duyệt hiện đại · Không cần kết nối Internet
+      </footer>
+    </div>
+    </section>
+
+    <section id="viewLab" class="view"><div id="lab"></div></section>
+  </main>
+
+  <script src="js/core/net.js"></script>
+  <script src="js/core/model.js"></script>
+  <script src="js/core/bus.js"></script>
+  <script src="js/core/registry.js"></script>
+  <script src="js/core/store.js"></script>
+  <script src="js/core/engine.js"></script>
+  <script src="js/modules/_stubs/stubs.js"></script>
+  <script src="scenarios/ref_hai_router.js"></script>
+  <script src="scenarios/_skeleton_A.js"></script>
+  <script src="scenarios/_skeleton_B.js"></script>
+  <script src="scenarios/_skeleton_C.js"></script>
+  <script src="scenarios/_skeleton_D.js"></script>
+  <script src="scenarios/_skeleton_X.js"></script>
+  <script src="js/legacy/legacy.js"></script>
+  <script src="js/modules/topology/topology_editor.js"></script>
+  <script src="js/ui/shell.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      const tabs = Array.prototype.slice.call(document.querySelectorAll('#viewTabs .tab-btn'));
+      const views = {
+        legacy: document.getElementById('viewLegacy'),
+        lab: document.getElementById('viewLab')
+      };
+      const tabViews = {
+        tabLegacy: 'legacy',
+        tabLab: 'lab'
+      };
+
+      function activate(name, moveFocus) {
+        if (!views[name]) return;
+        Object.keys(views).forEach(function (key) {
+          views[key].classList.toggle('active', key === name);
+        });
+        tabs.forEach(function (tab) {
+          const active = tabViews[tab.id] === name;
+          tab.classList.toggle('active', active);
+          tab.setAttribute('aria-selected', active ? 'true' : 'false');
+          tab.tabIndex = active ? 0 : -1;
+        });
+        document.body.setAttribute('data-view', name);
+        document.dispatchEvent(new CustomEvent('app:viewchange', { detail: { view: name } }));
+        if (moveFocus) {
+          const current = document.getElementById(name === 'legacy' ? 'tabLegacy' : 'tabLab');
+          if (current) current.focus();
+        }
+      }
+
+      tabs.forEach(function (tab, index) {
+        tab.addEventListener('click', function () {
+          activate(tabViews[tab.id], false);
+        });
+        tab.addEventListener('keydown', function (event) {
+          if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+          event.preventDefault();
+          const direction = event.key === 'ArrowRight' ? 1 : -1;
+          const next = (index + direction + tabs.length) % tabs.length;
+          activate(tabViews[tabs[next].id], true);
+        });
+      });
+
+      activate('legacy', false);
+    })();
+  </script>
+</body>
+</html>

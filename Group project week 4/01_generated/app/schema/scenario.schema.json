@@ -1,0 +1,794 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://netlab.local/schema/scenario.schema.json",
+  "title": "Lược đồ Kịch bản Mô phỏng Mạng (Chương 4: ARP và Định tuyến)",
+  "description": "Định nghĩa cấu trúc chuẩn cho một kịch bản mô phỏng mạng (JSON-compatible), bao gồm cấu trúc liên kết (topology), các đột biến trạng thái (mutations), lưu lượng kiểm thử, thử thách chẩn đoán và bộ ca kiểm thử tự động.",
+  "type": "object",
+  "required": [
+    "id",
+    "group",
+    "title",
+    "story",
+    "baseline",
+    "variants",
+    "traffic",
+    "assumptions",
+    "limitations",
+    "challenge",
+    "tests"
+  ],
+  "anyOf": [
+    {
+      "description": "Kịch bản nhúng trực tiếp đối tượng cấu hình mạng (topology).",
+      "required": ["topology"]
+    },
+    {
+      "description": "Kịch bản tham chiếu đến một cấu hình mạng đã đăng ký sẵn qua mã định danh (topologyRef).",
+      "required": ["topologyRef"]
+    }
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Mã định danh duy nhất của kịch bản (ví dụ: ref_hai_router, case_a1_arp_basic)."
+    },
+    "group": {
+      "type": "string",
+      "enum": ["A", "B", "C", "D", "X"],
+      "description": "Nhóm kịch bản: A (ARP, LAN và bảo mật), B (Định tuyến tĩnh và lỗi cấu hình), C (Định tuyến động RIP/OSPF và thay đổi liên kết), D (Định tuyến liên miền BGP), X (Sự cố bí ẩn / tổng hợp)."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Tiêu đề hiển thị tiếng Việt của kịch bản."
+    },
+    "story": {
+      "type": "string",
+      "description": "Mô tả bối cảnh thực tế và câu chuyện tình huống mạng của kịch bản."
+    },
+    "topology": {
+      "$ref": "#/$defs/Topology",
+      "description": "Đối tượng mô tả chi tiết cấu hình mạng (các thiết bị, giao diện, liên kết và dải mạng)."
+    },
+    "topologyRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Mã định danh tham chiếu tới một cấu hình mạng (Topology) đã được đăng ký trước."
+    },
+    "baseline": {
+      "type": "object",
+      "required": ["mutations"],
+      "description": "Trạng thái cơ sở (bình thường/chuẩn) của kịch bản trước khi áp dụng các biến thể sự cố.",
+      "properties": {
+        "mutations": {
+          "type": "array",
+          "description": "Danh sách các phép biến đổi áp dụng lên cấu hình gốc để tạo trạng thái cơ sở.",
+          "items": {
+            "$ref": "#/$defs/Mutation"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "variants": {
+      "type": "array",
+      "description": "Danh sách các biến thể trạng thái của kịch bản (ví dụ: bình thường, đứt cáp chính, sai gateway).",
+      "items": {
+        "$ref": "#/$defs/Variant"
+      }
+    },
+    "traffic": {
+      "type": "array",
+      "description": "Danh sách các luồng lưu lượng mẫu hoặc mặc định dùng để chạy mô phỏng trong kịch bản.",
+      "items": {
+        "$ref": "#/$defs/TrafficFlow"
+      }
+    },
+    "protocol": {
+      "$ref": "#/$defs/ProtocolConfig",
+      "description": "Cấu hình giao thức định tuyến áp dụng cho kịch bản (tùy chọn)."
+    },
+    "assumptions": {
+      "type": "array",
+      "description": "Danh sách các giả định kỹ thuật được áp dụng trong kịch bản này.",
+      "items": {
+        "type": "string",
+        "description": "Một giả định kỹ thuật bằng tiếng Việt."
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "description": "Danh sách các giới hạn mô phỏng cần lưu ý đối với kịch bản này.",
+      "items": {
+        "type": "string",
+        "description": "Một giới hạn mô phỏng bằng tiếng Việt."
+      }
+    },
+    "challenge": {
+      "$ref": "#/$defs/Challenge",
+      "description": "Cấu trúc bài tập chẩn đoán và xử lý sự cố (Troubleshooting Challenge) gắn với kịch bản."
+    },
+    "tests": {
+      "type": "array",
+      "description": "Danh sách các ca kiểm thử tự động đi kèm kịch bản để đối chiếu kết quả dự đoán và mô phỏng.",
+      "items": {
+        "$ref": "#/$defs/ScenarioTest"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "Topology": {
+      "type": "object",
+      "required": ["id", "name", "subnets", "devices", "links"],
+      "description": "Cấu trúc liên kết mạng hoàn chỉnh gồm danh sách dải mạng con, thiết bị và đường kết nối.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Mã định danh duy nhất của cấu hình liên kết mạng (topology)."
+        },
+        "name": {
+          "type": "string",
+          "description": "Tên hiển thị của sơ đồ mạng."
+        },
+        "subnets": {
+          "type": "array",
+          "description": "Danh sách các dải mạng con (subnet) có trong sơ đồ.",
+          "items": {
+            "$ref": "#/$defs/SubnetEntry"
+          }
+        },
+        "devices": {
+          "type": "array",
+          "description": "Danh sách các thiết bị mạng trong sơ đồ.",
+          "items": {
+            "$ref": "#/$defs/Device"
+          }
+        },
+        "links": {
+          "type": "array",
+          "description": "Danh sách các liên kết vật lý hoặc logic nối giữa các giao diện thiết bị.",
+          "items": {
+            "$ref": "#/$defs/Link"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "SubnetEntry": {
+      "description": "Thông tin một dải mạng con, có thể viết dạng chuỗi CIDR hoặc đối tượng chi tiết.",
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "Chuỗi địa chỉ mạng theo ký pháp CIDR (ví dụ: 192.168.10.0/24)."
+        },
+        {
+          "type": "object",
+          "description": "Đối tượng mô tả chi tiết một dải mạng con.",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Mã định danh của dải mạng con."
+            },
+            "name": {
+              "type": "string",
+              "description": "Tên gọi hiển thị của dải mạng con (ví dụ: LAN Văn phòng)."
+            },
+            "cidr": {
+              "type": "string",
+              "description": "Chuỗi CIDR của dải mạng (ví dụ: 192.168.10.0/24)."
+            },
+            "prefix": {
+              "type": "string",
+              "description": "Địa chỉ mạng IPv4 (ví dụ: 192.168.10.0)."
+            },
+            "prefixLen": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 32,
+              "description": "Độ dài tiền tố mạng (từ 0 đến 32)."
+            },
+            "vlan": {
+              "type": "integer",
+              "description": "Mã VLAN gắn với dải mạng con (nếu có)."
+            }
+          }
+        }
+      ]
+    },
+    "Device": {
+      "type": "object",
+      "required": ["id", "type", "label", "role", "interfaces", "arpCache", "routingTable", "position"],
+      "description": "Thông tin cấu hình và trạng thái của một thiết bị mạng (máy trạm, switch, router...).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Mã định danh duy nhất của thiết bị trong sơ đồ (ví dụ: pc1, r1, sw1)."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["pc", "laptop", "printer", "server", "switch", "router", "isp", "as-border"],
+          "description": "Loại thiết bị mạng."
+        },
+        "label": {
+          "type": "string",
+          "description": "Nhãn tên hiển thị của thiết bị trên giao diện sơ đồ."
+        },
+        "role": {
+          "type": "string",
+          "description": "Vai trò chức năng của thiết bị trong kịch bản (ví dụ: host, gateway, core-router)."
+        },
+        "interfaces": {
+          "type": "array",
+          "description": "Danh sách các cổng giao diện mạng trên thiết bị.",
+          "items": {
+            "$ref": "#/$defs/Interface"
+          }
+        },
+        "arpCache": {
+          "type": "object",
+          "description": "Bảng bộ nhớ đệm ARP hiện tại của thiết bị, ánh xạ từ địa chỉ IPv4 sang địa chỉ MAC.",
+          "additionalProperties": {
+            "type": "string",
+            "description": "Địa chỉ MAC tương ứng với khóa địa chỉ IPv4."
+          }
+        },
+        "routingTable": {
+          "type": "array",
+          "description": "Bảng định tuyến IPv4 hiện tại của thiết bị.",
+          "items": {
+            "$ref": "#/$defs/Route"
+          }
+        },
+        "vlanTable": {
+          "type": "object",
+          "description": "Bảng cấu hình VLAN trên thiết bị chuyển mạch (tùy chọn).",
+          "additionalProperties": {
+            "description": "Thông tin cấu hình cho từng mã VLAN."
+          }
+        },
+        "asn": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Số hiệu Hệ tự trị (Autonomous System Number - ASN) phục vụ định tuyến BGP (tùy chọn)."
+        },
+        "position": {
+          "type": "object",
+          "required": ["x", "y"],
+          "description": "Tọa độ hiển thị của thiết bị trên mặt phẳng sơ đồ SVG.",
+          "properties": {
+            "x": {
+              "type": "number",
+              "description": "Hoành độ (X) trên khung vẽ."
+            },
+            "y": {
+              "type": "number",
+              "description": "Tung độ (Y) trên khung vẽ."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "Interface": {
+      "type": "object",
+      "required": ["id", "name", "ip", "prefixLen", "mac", "up"],
+      "description": "Thông tin một cổng giao diện mạng (L2/L3) của thiết bị.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Mã định danh của cổng giao diện trong phạm vi thiết bị."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Tên cổng giao diện (ví dụ: eth0, g0/0, fa0/1)."
+        },
+        "ip": {
+          "type": ["string", "null"],
+          "description": "Địa chỉ IPv4 gán cho cổng (hoặc null đối với cổng L2 trên switch)."
+        },
+        "prefixLen": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 32,
+          "description": "Độ dài tiền tố subnet mask của cổng (từ 0 đến 32, hoặc null cho cổng L2)."
+        },
+        "mac": {
+          "type": "string",
+          "description": "Địa chỉ vật lý MAC 48-bit dạng thập lục phân (ví dụ: 02:aa:bb:cc:dd:01)."
+        },
+        "vlan": {
+          "type": "integer",
+          "description": "Mã VLAN của cổng giao diện (tùy chọn, mặc định VLAN 1)."
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["access", "trunk"],
+          "description": "Chế độ hoạt động VLAN của cổng switch: access (một VLAN) hoặc trunk (nhiều VLAN)."
+        },
+        "gateway": {
+          "type": ["string", "null"],
+          "description": "Địa chỉ IPv4 của Default Gateway cấu hình trên thiết bị đầu cuối (tùy chọn)."
+        },
+        "up": {
+          "type": "boolean",
+          "description": "Trạng thái hoạt động của cổng: true (đang bật) hoặc false (đang tắt/shutdown)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "Link": {
+      "type": "object",
+      "required": ["id", "a", "b", "up", "cost", "delayMs", "bandwidthMbps", "kind"],
+      "description": "Đường liên kết kết nối hai cổng giao diện của hai thiết bị mạng.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Mã định danh duy nhất của đường liên kết (ví dụ: l_pc1_sw1)."
+        },
+        "a": {
+          "$ref": "#/$defs/LinkEndpoint",
+          "description": "Đầu nối thứ nhất của đường liên kết."
+        },
+        "b": {
+          "$ref": "#/$defs/LinkEndpoint",
+          "description": "Đầu nối thứ hai của đường liên kết."
+        },
+        "up": {
+          "type": "boolean",
+          "description": "Trạng thái đường truyền: true (hoạt động) hoặc false (bị đứt/ngắt kết nối)."
+        },
+        "cost": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Chi phí định tuyến (metric/cost) gắn với liên kết (dùng cho OSPF/định tuyến)."
+        },
+        "delayMs": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Độ trễ truyền dẫn mô phỏng trên liên kết (tính bằng mili-giây)."
+        },
+        "bandwidthMbps": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Băng thông danh định của liên kết (tính bằng Mbps)."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["lan", "wan", "isp"],
+          "description": "Phân loại đường liên kết: mạng nội bộ (lan), diện rộng (wan) hoặc liên kết nhà mạng (isp)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "LinkEndpoint": {
+      "type": "object",
+      "required": ["dev", "if"],
+      "description": "Điểm đầu cuối của một liên kết, xác định bởi mã thiết bị và tên/mã giao diện.",
+      "properties": {
+        "dev": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Mã thiết bị (Device.id) tại đầu liên kết."
+        },
+        "if": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Tên hoặc mã giao diện (Interface.name / Interface.id) trên thiết bị đó."
+        }
+      },
+      "additionalProperties": false
+    },
+    "Route": {
+      "type": "object",
+      "required": ["prefix", "prefixLen", "nextHop", "outIf", "metric", "source", "adminDistance"],
+      "description": "Một mục định tuyến (route entry) trong bảng định tuyến của thiết bị.",
+      "properties": {
+        "prefix": {
+          "type": "string",
+          "description": "Địa chỉ mạng đích IPv4 (ví dụ: 10.20.0.0 hoặc 0.0.0.0 cho tuyến mặc định)."
+        },
+        "prefixLen": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32,
+          "description": "Độ dài tiền tố mạng đích (từ 0 đến 32, dùng cho khớp tiền tố dài nhất - LPM)."
+        },
+        "nextHop": {
+          "type": ["string", "null"],
+          "description": "Địa chỉ IPv4 của trạm kế tiếp (next-hop router), hoặc null nếu kết nối trực tiếp (connected)."
+        },
+        "outIf": {
+          "type": "string",
+          "description": "Tên cổng giao diện xuất gói tin (outgoing interface) trên thiết bị hiện tại."
+        },
+        "metric": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Giá trị độ đo (metric/cost) của tuyến đường."
+        },
+        "source": {
+          "type": "string",
+          "enum": ["connected", "static", "static-backup", "rip", "ospf", "bgp", "default"],
+          "description": "Nguồn học tuyến đường: kết nối trực tiếp, tĩnh, tĩnh dự phòng, RIP, OSPF, BGP hoặc mặc định."
+        },
+        "adminDistance": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Khoảng cách quản trị (Administrative Distance - AD) để phân xử khi có cùng độ dài tiền tố."
+        },
+        "attrs": {
+          "type": "object",
+          "description": "Các thuộc tính mở rộng của tuyến đường (ví dụ: thuộc tính BGP như localPref, asPath, origin).",
+          "properties": {
+            "localPref": {
+              "type": "number",
+              "description": "Thuộc tính ưu tiên nội bộ BGP (Local Preference)."
+            },
+            "asPath": {
+              "type": "array",
+              "description": "Danh sách chuỗi các số hiệu AS mà tuyến BGP đã đi qua (AS_PATH).",
+              "items": {
+                "type": "integer",
+                "description": "Số hiệu AS (ASN) trong chuỗi AS_PATH."
+              }
+            },
+            "med": {
+              "type": "number",
+              "description": "Thuộc tính Multi-Exit Discriminator (MED) trong BGP."
+            },
+            "origin": {
+              "type": "string",
+              "description": "Thuộc tính nguồn gốc tuyến BGP (IGP, EGP, Incomplete)."
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Mutation": {
+      "type": "object",
+      "required": ["op"],
+      "description": "Một phép biến đổi trạng thái mạng (bật/tắt liên kết, đổi chi phí, sửa cổng, thêm/xóa tuyến, sửa ARP, thêm/xóa thiết bị).",
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": [
+            "link.down",
+            "link.up",
+            "link.cost",
+            "if.set",
+            "route.add",
+            "route.del",
+            "arp.set",
+            "arp.clear",
+            "device.add",
+            "device.remove"
+          ],
+          "description": "Mã thao tác biến đổi trạng thái (operation code)."
+        },
+        "linkId": {
+          "type": "string",
+          "description": "Mã liên kết cần tác động (dùng cho link.down, link.up, link.cost)."
+        },
+        "cost": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Giá trị chi phí (cost) mới cần thiết lập cho liên kết (dùng cho link.cost)."
+        },
+        "up": {
+          "type": "boolean",
+          "description": "Trạng thái bật/tắt tùy chọn khi cập nhật liên kết."
+        },
+        "dev": {
+          "type": "string",
+          "description": "Mã thiết bị đích chịu tác động (dùng cho if.set, route.add, route.del, arp.set, arp.clear, device.remove)."
+        },
+        "if": {
+          "type": "string",
+          "description": "Tên hoặc mã giao diện trên thiết bị cần chỉnh sửa (dùng cho if.set)."
+        },
+        "patch": {
+          "type": "object",
+          "description": "Đối tượng chứa các thuộc tính cần ghi đè lên giao diện mạng (dùng cho if.set, ví dụ: {ip, prefixLen, gateway, vlan, up})."
+        },
+        "route": {
+          "$ref": "#/$defs/Route",
+          "description": "Đối tượng mục định tuyến cần thêm vào bảng định tuyến của thiết bị (dùng cho route.add)."
+        },
+        "prefix": {
+          "type": "string",
+          "description": "Địa chỉ mạng đích của tuyến cần xóa (dùng cho route.del)."
+        },
+        "prefixLen": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32,
+          "description": "Độ dài tiền tố của tuyến cần xóa (dùng cho route.del)."
+        },
+        "nextHop": {
+          "type": ["string", "null"],
+          "description": "Địa chỉ nextHop tùy chọn để lọc chính xác tuyến cần xóa (dùng cho route.del)."
+        },
+        "outIf": {
+          "type": "string",
+          "description": "Giao diện ra tùy chọn để lọc chính xác tuyến cần xóa (dùng cho route.del)."
+        },
+        "ip": {
+          "type": "string",
+          "description": "Địa chỉ IPv4 trong bảng ARP cần gán hoặc xóa (dùng cho arp.set, và tùy chọn cho arp.clear)."
+        },
+        "mac": {
+          "type": "string",
+          "description": "Địa chỉ MAC cần ánh xạ với IP trong bảng ARP (dùng cho arp.set)."
+        },
+        "device": {
+          "$ref": "#/$defs/Device",
+          "description": "Đối tượng thiết bị mới cần thêm vào sơ đồ mạng (dùng cho device.add)."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Ràng buộc tham số cho thao tác link.down và link.up.",
+          "if": {
+            "properties": { "op": { "enum": ["link.down", "link.up"] } }
+          },
+          "then": {
+            "required": ["linkId"]
+          }
+        },
+        {
+          "description": "Ràng buộc tham số cho thao tác link.cost.",
+          "if": {
+            "properties": { "op": { "const": "link.cost" } }
+          },
+          "then": {
+            "required": ["linkId", "cost"]
+          }
+        },
+        {
+          "description": "Ràng buộc tham số cho thao tác if.set.",
+          "if": {
+            "properties": { "op": { "const": "if.set" } }
+          },
+          "then": {
+            "required": ["dev", "if", "patch"]
+          }
+        },
+        {
+          "description": "Ràng buộc tham số cho thao tác route.add.",
+          "if": {
+            "properties": { "op": { "const": "route.add" } }
+          },
+          "then": {
+            "required": ["dev", "route"]
+          }
+        },
+        {
+          "description": "Ràng buộc tham số cho thao tác route.del.",
+          "if": {
+            "properties": { "op": { "const": "route.del" } }
+          },
+          "then": {
+            "required": ["dev", "prefix", "prefixLen"]
+          }
+        },
+        {
+          "description": "Ràng buộc tham số cho thao tác arp.set.",
+          "if": {
+            "properties": { "op": { "const": "arp.set" } }
+          },
+          "then": {
+            "required": ["dev", "ip", "mac"]
+          }
+        },
+        {
+          "description": "Ràng buộc tham số cho thao tác arp.clear.",
+          "if": {
+            "properties": { "op": { "const": "arp.clear" } }
+          },
+          "then": {
+            "required": ["dev"]
+          }
+        },
+        {
+          "description": "Ràng buộc tham số cho thao tác device.remove.",
+          "if": {
+            "properties": { "op": { "const": "device.remove" } }
+          },
+          "then": {
+            "required": ["dev"]
+          }
+        }
+      ]
+    },
+    "Variant": {
+      "type": "object",
+      "required": ["id", "label", "mutations"],
+      "description": "Một biến thể kịch bản (ví dụ: trạng thái lỗi hoặc thay đổi cấu hình trên nền baseline).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Mã định danh của biến thể (ví dụ: normal, link_down, wrong_gw)."
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Nhãn tên hiển thị tiếng Việt của biến thể trên danh sách chọn."
+        },
+        "mutations": {
+          "type": "array",
+          "description": "Danh sách các phép biến đổi áp dụng thêm sau baseline khi chọn biến thể này.",
+          "items": {
+            "$ref": "#/$defs/Mutation"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "TrafficFlow": {
+      "type": "object",
+      "required": ["from", "to", "proto"],
+      "description": "Định nghĩa một luồng lưu lượng kiểm thử gửi gói tin giữa hai điểm trong mạng.",
+      "properties": {
+        "from": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Mã thiết bị nguồn hoặc địa chỉ IP nguồn phát gói tin."
+        },
+        "to": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Mã thiết bị đích hoặc địa chỉ IP đích nhận gói tin."
+        },
+        "proto": {
+          "type": "string",
+          "enum": ["icmp", "arp", "tcp"],
+          "description": "Giao thức truyền thông mô phỏng: icmp (ping), arp (phân giải địa chỉ) hoặc tcp."
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Số lượng gói tin hoặc số lần gửi lặp lại (tùy chọn, mặc định là 1)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "ProtocolConfig": {
+      "type": "object",
+      "required": ["kind", "params"],
+      "description": "Thông tin cấu hình giao thức định tuyến tính toán bảng định tuyến động hoặc tĩnh.",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["static", "rip", "ospf", "bgp"],
+          "description": "Loại giao thức định tuyến sử dụng trong kịch bản."
+        },
+        "params": {
+          "type": "object",
+          "description": "Các tham số cấu hình chi tiết truyền cho bộ tính toán giao thức (ví dụ: maxHops, areas, policies)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "Challenge": {
+      "type": "object",
+      "required": ["symptoms", "checks", "hypotheses", "answer", "explanation"],
+      "description": "Bài tập chẩn đoán sự cố mạng tương tác dành cho người học.",
+      "properties": {
+        "symptoms": {
+          "type": "array",
+          "description": "Danh sách các triệu chứng ban đầu quan sát được khi xảy ra sự cố.",
+          "items": {
+            "type": "string",
+            "description": "Mô tả một triệu chứng sự cố bằng tiếng Việt."
+          }
+        },
+        "checks": {
+          "type": "array",
+          "description": "Danh sách các bước kiểm tra/thao tác thăm dò mà người học có thể thực hiện để thu thập bằng chứng.",
+          "items": {
+            "$ref": "#/$defs/ChallengeCheck"
+          }
+        },
+        "hypotheses": {
+          "type": "array",
+          "description": "Danh sách các giả thuyết nguyên nhân sự cố (lựa chọn trả lời) để người học đưa ra kết luận.",
+          "items": {
+            "description": "Một phương án giả thuyết (chuỗi hoặc đối tượng có id/label).",
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Nội dung giả thuyết dạng chuỗi văn bản."
+              },
+              {
+                "type": "object",
+                "required": ["id", "label"],
+                "description": "Đối tượng biểu diễn một lựa chọn giả thuyết có mã định danh.",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Mã của phương án giả thuyết."
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "Nội dung hiển thị của phương án giả thuyết."
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "answer": {
+          "type": ["string", "integer"],
+          "description": "Đáp án đúng của thử thách (mã giả thuyết, nội dung chuỗi hoặc chỉ số vị trí)."
+        },
+        "explanation": {
+          "type": "string",
+          "description": "Lời giải thích kỹ thuật chi tiết vì sao đáp án đó là nguyên nhân gốc rễ và vì sao các giả thuyết khác bị loại."
+        }
+      },
+      "additionalProperties": false
+    },
+    "ChallengeCheck": {
+      "type": "object",
+      "required": ["id", "label", "reveals"],
+      "description": "Một thao tác kiểm tra thông tin cấu hình/trạng thái trong phần thử thách chẩn đoán.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Mã định danh của bước kiểm tra (ví dụ: chk_arp_pc1, chk_route_r1)."
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Tên thao tác kiểm tra hiển thị cho người dùng (ví dụ: Kiểm tra bảng định tuyến R1)."
+        },
+        "reveals": {
+          "type": "string",
+          "description": "Thông tin hoặc bằng chứng kỹ thuật được tiết lộ sau khi thực hiện bước kiểm tra này."
+        }
+      },
+      "additionalProperties": false
+    },
+    "ScenarioTest": {
+      "type": "object",
+      "required": ["id", "category", "input", "expected", "explanation"],
+      "description": "Một ca kiểm thử tự động kiểm tra hành vi mô phỏng của kịch bản.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Mã định danh của ca kiểm thử (ví dụ: tc_01_ping_ok)."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["success", "fault", "route-change", "edge"],
+          "description": "Phân loại ca kiểm thử: thành công (success), lỗi cấu hình/mất kết nối (fault), thay đổi tuyến/liên kết (route-change), hoặc ca biên (edge)."
+        },
+        "input": {
+          "type": "object",
+          "description": "Thông số đầu vào của ca kiểm thử (biến thể kịch bản, hành động ping/arp, nguồn, đích, tham số bổ sung)."
+        },
+        "expected": {
+          "type": "object",
+          "description": "Kết quả dự đoán kỳ vọng (trạng thái thành công/thất bại, danh sách trạm đi qua, sự kiện phát sinh)."
+        },
+        "explanation": {
+          "type": "string",
+          "description": "Giải thích ý nghĩa và cơ chế mạng của kết quả kiểm thử bằng tiếng Việt."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

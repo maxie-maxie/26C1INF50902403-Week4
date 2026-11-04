@@ -1,0 +1,179 @@
+# Hướng dẫn chạy phòng thí nghiệm mạng
+
+Ứng dụng mô phỏng ARP và định tuyến, chạy hoàn toàn trong trình duyệt. Không cần cài đặt, không cần máy chủ, không cần kết nối Internet.
+
+## 1. Yêu cầu
+
+- Một trình duyệt hiện đại: Chrome, Edge hoặc Firefox.
+- Máy tính có thể đọc tệp cục bộ.
+- Không cần thư viện, không cần tài khoản, không cần mạng.
+
+Ứng dụng không gọi mạng và không gửi dữ liệu đi đâu. Mọi thứ chạy từ chính các tệp trên máy.
+
+## 2. Mở ứng dụng
+
+1. Giải nén gói ứng dụng ra một thư mục bất kỳ (ví dụ `Desktop\phong-thi-nghiem`).
+2. Mở thư mục vừa giải nén. Kiểm tra thấy `index.html` nằm cạnh các thư mục `css`, `js`, `scenarios`, `schema`, `tests`.
+3. Nhấp đúp `index.html`.
+
+Trình duyệt mặc định sẽ mở ứng dụng. Nếu hệ thống hỏi chọn chương trình, chọn Chrome, Edge hoặc Firefox.
+
+Nếu nhấp đúp mở nhầm trình soạn thảo:
+
+- Windows: chuột phải `index.html` → **Open with** → chọn trình duyệt.
+- Hoặc kéo tệp `index.html` thả vào cửa sổ trình duyệt.
+
+Không di chuyển riêng `index.html` ra khỏi thư mục. Ứng dụng tải các tệp `js/`, `css/` và `scenarios/` theo đường dẫn tương đối; thiếu thư mục sẽ mất chức năng.
+
+## 3. Hai chế độ xem
+
+Phía trên trang có hai tab:
+
+- **Hành trình cơ bản**: bài giảng từng bước, có sẵn sơ đồ mẫu.
+- **Phòng thí nghiệm**: chọn kịch bản, biến thể và tự chạy hành động.
+
+Chuyển tab bằng cách bấm vào tên tab. Khi tab "Hành trình cơ bản" đang mở, phím `←` và `→` cũng chuyển bước.
+
+### 3.1. Hành trình cơ bản
+
+Đây là phần kể chuyện một gói tin đi từ laptop ở TP.HCM đến máy chủ ở Hà Nội.
+
+Các điều khiển chính:
+
+| Điều khiển | Tác dụng |
+|---|---|
+| **Đích cần truy cập** | Chọn "Máy chủ ở Hà Nội — khác subnet" (7 bước) hoặc "Máy in trong LAN — cùng subnet" (5 bước). |
+| **← Trước** | Lùi một bước. |
+| **Tiếp theo →** | Tiến một bước; ở bước cuối nút đổi thành **✓ Hoàn tất**. |
+| **↻ Làm lại** | Về bước 1 và tắt tự chạy. |
+| **▶ Tự chạy** | Tự chuyển bước khoảng 2,3 giây một lần; bấm lại để tạm dừng. |
+| **⚡ Mô phỏng đứt tuyến chính** | Bật/tắt tình huống đứt tuyến để xem đường dự phòng. Chỉ dùng được ở chế độ máy chủ Hà Nội. |
+| **Làm lại câu hỏi** | Đặt lại câu trắc nghiệm ngắn bên phải. |
+
+Khi chuyển bước, sơ đồ SVG tô sáng thiết bị và liên kết liên quan; khung "Gói tin đang mang gì?" đổi theo bước; thanh tiến trình bên phải cập nhật.
+
+Thử nhanh:
+
+1. Giữ đích "Máy chủ ở Hà Nội — khác subnet".
+2. Bấm **Tiếp theo →** lần lượt qua 7 bước và đọc phần "Điểm cần nhớ".
+3. Chuyển đích sang "Máy in trong LAN — cùng subnet" và xem lại 5 bước.
+4. Bấm **⚡ Mô phỏng đứt tuyến chính**, rồi tiến tới bước 6 để thấy tuyến dự phòng.
+
+### 3.2. Phòng thí nghiệm
+
+Đây là chế độ chạy kịch bản có sẵn và xem từng bước mô phỏng.
+
+Quy trình:
+
+1. Chọn **Kịch bản**.
+   - `Kịch bản tham chiếu – hai router giữa LAN văn phòng và LAN máy chủ` là ví dụ đầy đủ.
+   - Năm mục còn lại là khung mẫu trống để viết kịch bản mới.
+2. Chọn **Biến thể**. Với kịch bản tham chiếu:
+   - **Bình thường**: cả hai đường WAN hoạt động.
+   - **Ngắt liên kết chính**: đường WAN chính bị đứt.
+   - **Thiếu tuyến về trên R2**: R2 mất tuyến quay về LAN văn phòng.
+3. Chọn **Hành động**:
+   - **Ping (ICMP)**: chọn thiết bị nguồn ở "Từ thiết bị" và thiết bị đích ở "Tới thiết bị".
+   - **Tra cứu ARP**: chọn thiết bị nguồn, rồi nhập IP đích vào ô "IP đích" (ví dụ từ `laptop1` nhập `192.168.10.1` để phân giải MAC của gateway).
+4. Bấm **Chạy**.
+
+Sau khi chạy, bộ đếm hiển thị `Bước 0 / N` và sơ đồ tô sáng bước đầu tiên. Kết quả cuối cùng hiện ở dòng "Kết quả" khi tới bước cuối.
+
+Ví dụ với kịch bản tham chiếu:
+
+1. Chọn kịch bản tham chiếu, biến thể **Bình thường**.
+2. Hành động **Ping**, từ `laptop1` tới `srv1`, bấm **Chạy**.
+3. Bấm **⏭ Tiến** đến bước cuối: kết quả **Thành công**.
+4. Đổi biến thể sang **Ngắt liên kết chính**, chạy lại: gói tin dừng tại R1, kết quả **Thất bại**.
+5. Đổi biến thể sang **Thiếu tuyến về trên R2**, chạy lại: kết quả `không nhận được phản hồi` vì chặng đi tới máy chủ nhưng chặng về mất tại R2.
+
+#### Thanh phát
+
+| Nút | Tác dụng |
+|---|---|
+| **▶ Tự động** | Phát lần lượt các bước theo tốc độ đang chọn. |
+| **⏸ Tạm dừng** | Dừng phát tự động, giữ nguyên bước hiện tại. |
+| **⏮ Lùi** | Lùi một bước. |
+| **⏭ Tiến** | Tiến một bước. |
+| **↺ Đặt lại** | Về bước đầu tiên của lần chạy. |
+| **Tốc độ** | Kéo thanh trượt từ 120 đến 1500 ms mỗi bước; giá trị hiện tại hiện bên cạnh. |
+
+Các nút này chỉ bật sau khi bấm **Chạy**. Bấm **Lùi** hoặc **Tiến** sẽ tự tạm dừng chế độ tự động.
+
+#### Đọc sơ đồ SVG
+
+- Mỗi thiết bị là một ô chữ nhật có biểu tượng, tên và địa chỉ IP chính.
+- Mỗi liên kết là một đường nối; con số trên đường là **chi phí (cost)**.
+- Liên kết đang bị ngắt được vẽ khác với liên kết hoạt động; xem chú giải ngay dưới sơ đồ.
+- Bước hiện tại tô sáng thiết bị và liên kết đang được dùng.
+- Di chuột lên thiết bị để xem chú thích: giao diện, IP, MAC, trạng thái cổng, số tuyến và số mục ARP.
+- Switch là thiết bị chuyển mạch trong suốt: có trên sơ đồ nhưng không tạo bước mô phỏng riêng.
+
+#### Các panel dưới sơ đồ
+
+| Panel | Nội dung |
+|---|---|
+| **Kiểm tra gói tin (Packet Inspector)** | Bước hiện tại, thiết bị, liên kết, MAC nguồn/đích, IP nguồn/đích, giao thức, TTL, tuyến được chọn. |
+| **Dòng thời gian sự kiện (Network Event Timeline)** | Các sự kiện mô phỏng đã phát sinh, kèm mức độ và dấu "nghi vấn" khi kết luận chưa chắc chắn. |
+| **So sánh cơ sở và sự cố (Baseline vs Failure)** | Kịch bản và biến thể đang xem. |
+| **Thử thách chẩn đoán (Troubleshooting Challenge)** | Triệu chứng của kịch bản để luyện chẩn đoán. |
+| **Trình soạn sơ đồ (Topology editor)** | Số thiết bị, số liên kết và bước đang xem trên sơ đồ. |
+
+Các panel cập nhật theo từng bước và tự xoá nội dung khi đổi kịch bản, biến thể hoặc đặt lại.
+
+## 4. Mẹo sử dụng
+
+- Muốn xem kỹ một bước: bấm **⏸ Tạm dừng**, rồi dùng **⏮ Lùi** / **⏭ Tiến**.
+- Muốn tua nhanh: kéo thanh **Tốc độ** về phía 120 ms.
+- Kết quả chỉ hiện ở bước cuối; nếu chưa thấy, bấm **⏭ Tiến** tới khi bộ đếm bằng tổng số bước.
+- Đổi biến thể là cách nhanh nhất để so sánh "bình thường" và "sự cố" trên cùng một sơ đồ.
+- Với tra cứu ARP, IP đích phải đúng định dạng IPv4 (bốn số 0–255, ví dụ `192.168.10.1`). Nhập sai sẽ có thông báo ngay dưới ô chọn.
+
+## 5. Lỗi thường gặp
+
+| Hiện tượng | Cách xử lý |
+|---|---|
+| Trang trắng hoặc thiếu định dạng | Kiểm tra `index.html` vẫn nằm cạnh `css/`, `js/`, `scenarios/`. Giải nén lại nếu cần. |
+| Mở bằng trình soạn thảo | Chuột phải `index.html` → **Open with** → trình duyệt. |
+| Tab "Phòng thí nghiệm" báo chưa có kịch bản | Cấu trúc thư mục bị thiếu hoặc tệp kịch bản không tải được. Mở DevTools → Console để xem lỗi. |
+| Không nạp được kịch bản | Thông báo đỏ trong tab cho biết lỗi cụ thể; thử chọn kịch bản tham chiếu. |
+| Nút phát bị mờ | Chưa bấm **Chạy**, hoặc lần chạy không sinh bước nào. |
+| Không nghe thấy gì khi tự chạy | Ứng dụng không có âm thanh; theo dõi sơ đồ và bộ đếm. |
+| Giao diện lạ sau khi cập nhật | Xoá bộ nhớ đệm trình duyệt rồi tải lại trang (Ctrl+F5). |
+
+Ứng dụng không cần mạng. Nếu trình duyệt chặn tệp cục bộ do chính sách quản trị, hãy mở bằng Chrome/Edge/Firefox trên máy cá nhân hoặc liên hệ người quản trị máy.
+
+## 6. Chạy kiểm thử tự động (tuỳ chọn)
+
+Phần này chỉ dành cho người muốn kiểm tra lại mã nguồn. Cần cài Node.js (bản 18 trở lên; đã kiểm tra với Node 26.3.0).
+
+1. Mở terminal tại thư mục ứng dụng (nơi có `package.json`).
+2. Chạy kiểm thử đơn vị:
+
+   ```bat
+   node --test
+   ```
+
+   Kết quả mong đợi trên bản hiện tại:
+
+   ```
+   ℹ tests 75
+   ℹ pass 75
+   ℹ fail 0
+   ```
+
+3. Chạy bộ ca kiểm thử kịch bản:
+
+   ```bat
+   node tests\run_all.js
+   ```
+
+   Kết quả mong đợi:
+
+   ```
+   run_all: 9 ca kiểm thử, 9 đạt, 0 thất bại.
+   ```
+
+   Lệnh này ghi kết quả chi tiết vào `tests\results.json`.
+
+Chạy `node --test` ngay tại thư mục ứng dụng. Với Node 26.3.0, truyền thêm đường dẫn thư mục (ví dụ `node --test tests`) sẽ báo không tìm thấy mô-đun; Node tự tìm các tệp `*.test.js` khi không có tham số.

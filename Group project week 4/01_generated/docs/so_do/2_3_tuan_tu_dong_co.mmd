@@ -1,0 +1,29 @@
+sequenceDiagram
+  actor ND as Người dùng
+  participant UI as shell.js
+  participant RG as registry.js
+  participant EN as engine.js
+  participant PL as Player
+  participant BU as bus.js
+  participant PN as Các panel
+
+  ND->>UI: chọn kịch bản + biến thể
+  UI->>RG: loadScenario(id, variantId)
+  Note over RG: createTopology + applyMutations<br/>(baseline rồi mutations của biến thể)
+  RG-->>UI: state (topology đã biến đổi)
+
+  ND->>UI: chọn hành động, bấm "Chạy"
+  UI->>EN: build(state, action)
+  Note over EN: mô phỏng toàn bộ trước (trace tiền tính):<br/ARP miss/hit, tra LPM, giảm TTL, viết lại frame
+  EN-->>UI: Trace {steps[], events[], result}
+  UI->>EN: createPlayer(trace, {onStep})
+  EN-->>UI: Player {play, pause, stepForward, stepBack, seek, reset}
+  UI->>PN: onReset()
+
+  ND->>UI: tiến / lùi / tự chạy
+  UI->>PL: stepForward() / stepBack() / seek(i)
+  Note over PL: mỗi Step mang stateAfter —<br/>lùi một bước không cần mô phỏng lại
+  PL-->>UI: onStep(step)
+  UI->>BU: emit(event có stepIndex tương ứng)
+  BU-->>PN: panel đã đăng ký bus.on
+  UI->>PN: onEvent(evt) rồi onStep(step)

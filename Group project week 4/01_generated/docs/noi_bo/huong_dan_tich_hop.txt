@@ -1,0 +1,816 @@
+# Hướng dẫn tích hợp mô-đun vào phòng thí nghiệm mạng
+
+Tài liệu này mô tả cách thêm ba loại thành phần vào ứng dụng mô phỏng: **kịch bản** (scenario), **giao thức định tuyến** (protocol) và **panel giao diện**. Nội dung dành cho người phát triển đọc mã nguồn, không phải hướng dẫn sử dụng.
+
+Ứng dụng chạy hoàn toàn ngoại tuyến qua `file://`. Vì vậy mọi mô-đun phải tuân thủ ba nguyên tắc:
+
+- Không dùng `fetch()`/XHR, không tải CDN, không phụ thuộc thư viện ngoài.
+- Phần lõi (`js/core/*.js`) không truy cập DOM; chỉ các mô-đun giao diện mới dùng `document`.
+- Kết quả mô phỏng phải tất định: không dùng `Date.now()`, không dùng số ngẫu nhiên.
+
+## 1. Cấu trúc thư mục và thứ tự tải
+
+```
+app/
+├── index.html
+├── css/
+├── js/
+│   ├── core/                 net, model, bus, registry, store, engine
+│   ├── modules/              các panel giao diện
+│   │   └── _stubs/stubs.js   năm panel mẫu đang dùng
+│   ├── legacy/legacy.js      chế độ "Hành trình cơ bản"
+│   └── ui/shell.js           dựng chế độ "Phòng thí nghiệm"
+├── scenarios/                mỗi kịch bản một tệp .js
+├── schema/scenario.schema.json
+└── tests/                    validate_scenarios.js, run_all.js, *.test.js
+```
+
+`index.html` tải script theo thứ tự cố định:
+
+```html
+<script src="js/core/net.js"></script>
+<script src="js/core/model.js"></script>
+<script src="js/core/bus.js"></script>
+<script src="js/core/registry.js"></script>
+<script src="js/core/store.js"></script>
+<script src="js/core/engine.js"></script>
+<script src="js/modules/_stubs/stubs.js"></script>
+<script src="scenarios/ref_hai_router.js"></script>
+<script src="scenarios/_skeleton_A.js"></script>
+<!-- ... các kịch bản khác ... -->
+<script src="js/legacy/legacy.js"></script>
+<script src="js/ui/shell.js"></script>
+```
+
+Thứ tự có ý nghĩa:
+
+1. `net.js` → `model.js` → `engine.js` phụ thuộc nhau theo đúng thứ tự này.
+2. `registry.js` phải có trước mọi tệp gọi `registerScenario`, `registerProtocol`, `registerPanel`.
+3. Kịch bản và panel phải đăng ký trước khi `shell.js` khởi động chế độ thí nghiệm (shell khởi động khi tab được mở lần đầu, nhưng tải script trước vẫn là cách an toàn nhất).
+4. `legacy.js` và `shell.js` đứng cuối.
+
+## 2. Viết một kịch bản
+
+### 2.1 Quy trình
+
+1. Chọn mẫu gần nội dung nhất trong `scenarios/`:
+   - `_skeleton_A.js`: ARP, LAN, VLAN và bảo mật.
+   - `_skeleton_B.js`: định tuyến tĩnh và lỗi cấu hình.
+   - `_skeleton_C.js`: định tuyến động RIP/OSPF và thay đổi liên kết.
+   - `_skeleton_D.js`: định tuyến liên miền BGP.
+   - `_skeleton_X.js`: sự cố tổng hợp.
+2. Sao chép thành `scenarios/<id>.js`, trong đó `<id>` trùng với trường `id` và không dấu, không khoảng trắng. Ví dụ: `scenarios/case_b4_doi_gateway.js`.
+3. Thay `id`, `group`, `title`, `story`, rồi thay `topology` mẫu bằng sơ đồ thật.
+4. Điền `variants`, `challenge`, `tests`; xoá mọi ghi chú `(chờ tích hợp)`.
+5. Thêm thẻ `<script>` vào `index.html` (mục 5.2) và chạy kiểm tra (mục 5.3).
+
+Mỗi tệp kịch bản giữ đúng khung cuối tệp:
+
+```js
+(function (root) {
+  const NetLab = root.NetLab = root.NetLab || {};
+  const sc = { /* ... */ };
+
+  if (NetLab.registry && NetLab.registry.registerScenario) NetLab.registry.registerScenario(sc);
+  if (typeof module !== 'undefined' && module.exports) module.exports = sc;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+```
+
+`registerScenario` ném lỗi nếu `id` rỗng hoặc trùng với kịch bản đã đăng ký. Đối tượng kịch bản phải thuần JSON (không hàm, không `Date`) để `require()` trong Node và `JSON.stringify` cho kết quả ổn định.
+
+### 2.2 Các trường của kịch bản
+
+Lược đồ đầy đủ và mô tả tiếng Việt từng trường nằm ở `schema/scenario.schema.json`. Bảng dưới đây là bản tóm tắt thực dụng.
+
+| Trường | Bắt buộc | Kiểu | Ghi chú |
+|---|---|---|---|
+| `id` | Có | chuỗi | Duy nhất, trùng tên tệp, không dấu, không khoảng trắng. |
+| `group` | Có | `A` \| `B` \| `C` \| `D` \| `X` | Nhãn nhóm nội dung trong thư viện. |
+| `title` | Có | chuỗi | Tiêu đề hiển thị trong danh sách kịch bản. |
+| `story` | Có | chuỗi | Bối cảnh 3–6 câu: mạng của ai, đang làm gì, sự cố khi nào. |
+| `topology` | Một trong hai | đối tượng | Sơ đồ nhúng trực tiếp. |
+| `topologyRef` | Một trong hai | chuỗi | Tham chiếu topology đã đăng ký bằng `registerTopology`. |
+| `baseline.mutations` | Có | mảng | Đột biến đưa sơ đồ về trạng thái chuẩn; để `[]` nếu topology gốc đã đúng. |
+| `variants` | Có | mảng | Mỗi phần tử `{id, label, mutations}`; ca bình thường đặt đầu tiên. |
+| `traffic` | Có | mảng | Luồng minh hoạ `{from, to, proto, count?}` với `proto` là `icmp`, `arp` hoặc `tcp`. Hiện dùng làm dữ liệu mô tả, không tự chạy. |
+| `protocol` | Không | `{kind, params}` | `kind` thuộc `static`, `rip`, `ospf`, `bgp`. Chỉ chạy khi kind đã được đăng ký. |
+| `assumptions` | Có | mảng chuỗi | Giả định kỹ thuật của kịch bản. |
+| `limitations` | Có | mảng chuỗi | Giới hạn mô phỏng cần nêu rõ. |
+| `challenge` | Có | đối tượng | Bài chẩn đoán: triệu chứng, bước kiểm tra, giả thuyết, đáp án, giải thích. |
+| `tests` | Có | mảng | Ca kiểm thử tự động, xem mục 2.6. |
+
+### 2.3 Cấu trúc topology
+
+Topology gồm bốn phần: `id`, `name`, `subnets`, `devices`, `links`.
+
+**Thiết bị** (`devices[]`) cần đủ các trường:
+
+| Trường | Ghi chú |
+|---|---|
+| `id` | Duy nhất trong sơ đồ; dùng làm khoá cho `traffic`, `tests`, mutations. |
+| `type` | `pc`, `laptop`, `printer`, `server`, `switch`, `router`, `isp`, `as-border`. |
+| `label`, `role` | Nhãn hiển thị và vai trò chức năng (`host`, `gateway-router`, `access-switch`...). |
+| `interfaces` | Xem bảng giao diện bên dưới. |
+| `arpCache` | Đối tượng `{ "<ip>": "<mac>" }`; để `{}` để người học quan sát ARP từ đầu. |
+| `routingTable` | Mảng tuyến; host cùng subnet có thể để `[]`, host đi xa cần tuyến mặc định. |
+| `position` | `{x, y}` cho sơ đồ SVG. |
+
+**Giao diện** (`interfaces[]`):
+
+| Trường | Ghi chú |
+|---|---|
+| `id`, `name` | Duy nhất trong thiết bị; có thể trùng nhau (ví dụ `eth0`). |
+| `ip` | IPv4 hoặc `null` với cổng L2 của switch. |
+| `prefixLen` | 0–32 hoặc `null` với cổng L2. |
+| `mac` | Chuỗi dạng `02:aa:bb:cc:dd:ee`; nếu bỏ qua, hệ thống sinh MAC tất định. |
+| `up` | `true`/`false`. |
+| `vlan`, `mode` | Tuỳ chọn cho switch: `mode` là `access` hoặc `trunk`. |
+| `gateway` | Chỉ là thông tin cấu hình của thiết bị đầu cuối; **không** được engine dùng để định tuyến (xem 2.4). |
+
+**Liên kết** (`links[]`) cần `id`, `a`, `b`, `up`, `cost`, `delayMs`, `bandwidthMbps`, `kind`. Mỗi đầu liên kết là `{dev: "<device id>", if: "<interface name/id>"}` và phải trỏ tới thiết bị, giao diện có thật. `kind` thuộc `lan`, `wan`, `isp`.
+
+Bộ kiểm tra topology từ chối các trường hợp sau:
+
+- Trùng `device.id`, trùng `link.id`, trùng tên giao diện trong một thiết bị.
+- `type`, `mode`, `kind`, `source` nằm ngoài danh sách cho phép.
+- IP hoặc `prefixLen` sai định dạng.
+- Liên kết trỏ tới thiết bị/giao diện không tồn tại.
+- Hai giao diện L3 nối trực tiếp (không qua switch) nhưng khác subnet.
+
+**Tuyến** (`routingTable[]`):
+
+| Trường | Ghi chú |
+|---|---|
+| `prefix`, `prefixLen` | Đích; `0.0.0.0` + `0` là tuyến mặc định. |
+| `nextHop` | IP trạm kế tiếp, hoặc `null` nếu đích nối trực tiếp. |
+| `outIf` | Tên giao diện ra. |
+| `metric` | Độ đo; càng nhỏ càng tốt. |
+| `source` | `connected`, `static`, `static-backup`, `rip`, `ospf`, `bgp`, `default`. |
+| `adminDistance` | Càng nhỏ càng ưu tiên khi cùng độ dài tiền tố. |
+| `attrs` | Tuỳ chọn cho BGP (`localPref`, `asPath`, `med`, `origin`). |
+
+Router cần một tuyến `connected` cho mỗi dải nối trực tiếp. Khi tra bảng, engine chọn theo thứ tự: tiền tố dài nhất → `adminDistance` nhỏ nhất → `metric` nhỏ nhất → tuyến xuất hiện trước.
+
+**Đột biến** (`baseline.mutations` và `variants[].mutations`):
+
+| `op` | Trường bắt buộc | Tác dụng |
+|---|---|---|
+| `link.down` / `link.up` | `linkId` | Bật/tắt liên kết. |
+| `link.cost` | `linkId`, `cost` | Đổi chi phí (và tuỳ chọn `up`). |
+| `if.set` | `dev`, `if`, `patch` | Ghi đè thuộc tính giao diện, ví dụ `{ip, prefixLen, gateway, vlan, up}`. |
+| `route.add` | `dev`, `route` | Thêm tuyến. |
+| `route.del` | `dev`, `prefix`, `prefixLen` | Xoá tuyến; có thể lọc thêm `nextHop`, `outIf`. |
+| `arp.set` | `dev`, `ip`, `mac` | Gán một mục ARP. |
+| `arp.clear` | `dev`, `ip?` | Xoá một mục, hoặc xoá cả bảng nếu không có `ip`. |
+| `device.add` | `device` | Thêm thiết bị. |
+| `device.remove` | `dev` | Xoá thiết bị và mọi liên kết của nó. |
+
+Baseline được áp trước, sau đó mới áp đột biến của biến thể đang chọn. Mọi phép biến đổi chạy trên bản sao, không sửa dữ liệu gốc.
+
+### 2.4 Lỗi thường gặp: host phải có tuyến mặc định
+
+Đây là hành vi đã kiểm chứng bằng mã nguồn và bằng thực nghiệm. Với đích khác subnet, engine tra **`routingTable` của thiết bị nguồn**:
+
+```js
+// js/core/engine.js, nhánh "Giao tiếp khác subnet"
+var rtResult = net.lpm(srcDev.routingTable, dstIp);
+```
+
+Trường `iface.gateway` chỉ được lưu và kiểm tra định dạng trong `js/core/model.js`; engine không đọc trường này. Vì vậy một máy trạm khai báo:
+
+```js
+interfaces: [{ id: 'eth0', name: 'eth0', ip: '192.168.10.20', prefixLen: 24,
+               mac: '02:10:00:00:00:01', gateway: '192.168.10.1', up: true }],
+routingTable: []
+```
+
+sẽ không ping được ra ngoài subnet dù `gateway` đã đúng. Thiết bị đầu cuối cần thêm:
+
+```js
+routingTable: [{
+  prefix: '0.0.0.0', prefixLen: 0,
+  nextHop: '192.168.10.1', outIf: 'eth0',
+  metric: 1, source: 'default', adminDistance: 254
+}]
+```
+
+Kết quả kiểm chứng trên một sơ đồ hai router (PC → R1 → server):
+
+```
+gateway = 192.168.10.1 | routingTable = []
+KHONG co default route  -> {"status":"fail"} | so buoc = 2
+CO default route        -> {"status":"ok"} | so buoc = 19
+```
+
+Hệ quả: mọi host trong kịch bản đi ra ngoài subnet (kể cả chỉ để nhận phản hồi ping) đều phải có tuyến mặc định. Nếu thiếu, trace dừng ngay tại host với sự kiện `unreachable`.
+
+### 2.5 Ví dụ hoàn chỉnh
+
+Ví dụ tối giản: hai máy nối trực tiếp trong cùng LAN. Tệp `scenarios/dummy_huong_dan.js` dưới đây là bản hoàn chỉnh, chạy được ngay và có hai ca kiểm thử.
+
+```js
+/**
+ * scenarios/dummy_huong_dan.js
+ * Ví dụ tối giản: hai máy tính nối trực tiếp trong cùng một LAN.
+ */
+(function (root) {
+  const NetLab = root.NetLab = root.NetLab || {};
+
+  const sc = {
+    id: 'dummy_huong_dan',
+    group: 'A',
+    title: 'Ví dụ tối giản – hai máy trong cùng LAN',
+    story:
+      'Phòng kỹ thuật có hai máy tính nối trực tiếp bằng cáp mạng trong cùng dải ' +
+      '192.168.100.0/24. Kỹ thuật viên ping từ PC A sang PC B để kiểm tra kết nối ' +
+      'trước khi bàn giao. Cả hai máy đều chưa có mục ARP nào nên lần ping đầu tiên ' +
+      'phải phân giải địa chỉ MAC của PC B.',
+
+    topology: {
+      id: 'topo_dummy_huong_dan',
+      name: 'Hai máy trong cùng LAN',
+      subnets: ['192.168.100.0/24'],
+      devices: [
+        {
+          id: 'pc_a', type: 'pc', label: 'PC A', role: 'host',
+          interfaces: [{
+            id: 'eth0', name: 'eth0',
+            ip: '192.168.100.10', prefixLen: 24,
+            mac: '02:aa:aa:00:00:01', gateway: '192.168.100.1', up: true
+          }],
+          arpCache: {},
+          routingTable: [],
+          position: { x: 120, y: 160 }
+        },
+        {
+          id: 'pc_b', type: 'pc', label: 'PC B', role: 'host',
+          interfaces: [{
+            id: 'eth0', name: 'eth0',
+            ip: '192.168.100.20', prefixLen: 24,
+            mac: '02:aa:aa:00:00:02', gateway: '192.168.100.1', up: true
+          }],
+          arpCache: {},
+          routingTable: [],
+          position: { x: 360, y: 160 }
+        }
+      ],
+      links: [
+        {
+          id: 'l_pc_a_pc_b',
+          a: { dev: 'pc_a', if: 'eth0' },
+          b: { dev: 'pc_b', if: 'eth0' },
+          up: true, cost: 1, delayMs: 1, bandwidthMbps: 1000, kind: 'lan'
+        }
+      ]
+    },
+
+    baseline: { mutations: [] },
+
+    variants: [
+      { id: 'binh_thuong', label: 'Bình thường', mutations: [] },
+      { id: 'ngat_cap', label: 'Ngắt cáp giữa hai máy',
+        mutations: [{ op: 'link.down', linkId: 'l_pc_a_pc_b' }] }
+    ],
+
+    traffic: [
+      { from: 'pc_a', to: 'pc_b', proto: 'icmp', count: 1 }
+    ],
+
+    protocol: { kind: 'static', params: {} },
+
+    assumptions: [
+      'Hai máy nằm cùng một dải mạng con nên không cần default gateway để ping nhau.',
+      'Bảng ARP khởi đầu trống; lần ping đầu tiên sẽ phát ARP Request.'
+    ],
+    limitations: [
+      'Sơ đồ chỉ có một liên kết trực tiếp, không mô phỏng switch hay VLAN.',
+      'Không mô phỏng mất gói ngẫu nhiên hay truyền lại.'
+    ],
+
+    challenge: {
+      symptoms: [
+        'Ở biến thể "Ngắt cáp giữa hai máy", ping từ PC A sang PC B thất bại.'
+      ],
+      checks: [
+        {
+          id: 'chk_link',
+          label: 'Kiểm tra trạng thái cáp nối hai máy',
+          reveals: 'Liên kết l_pc_a_pc_b đang down.'
+        }
+      ],
+      hypotheses: [
+        { id: 'h_cap', label: 'Cáp mạng giữa hai máy bị ngắt' },
+        { id: 'h_arp', label: 'Bảng ARP của PC A bị sai' }
+      ],
+      answer: 'h_cap',
+      explanation:
+        'Khi liên kết l_pc_a_pc_b bị ngắt, ARP Request không thể đến PC B nên PC A ' +
+        'không nhận được ARP Reply; gói tin bị loại ngay trên liên kết. Giả thuyết ARP ' +
+        'sai bị loại vì bảng ARP chỉ ảnh hưởng sau khi liên kết vật lý hoạt động.'
+    },
+
+    tests: [
+      {
+        id: 'tc01_ping_binh_thuong',
+        category: 'success',
+        input: { variantId: 'binh_thuong', type: 'ping', from: 'pc_a', to: 'pc_b' },
+        expected: { status: 'ok', hopSequence: ['pc_a', 'pc_b', 'pc_a'] },
+        explanation:
+          'Ping hai chiều thành công trong cùng LAN; không có switch nên dãy thiết bị ' +
+          'chỉ gồm hai máy, chặng về quay lại PC A.'
+      },
+      {
+        id: 'tc02_ping_ngat_cap',
+        category: 'fault',
+        input: { variantId: 'ngat_cap', type: 'ping', from: 'pc_a', to: 'pc_b' },
+        expected: { status: 'fail', hopSequence: ['pc_a'] },
+        explanation:
+          'Cáp bị ngắt nên ARP Request không đến được PC B; gói tin bị loại tại PC A.'
+      }
+    ]
+  };
+
+  if (NetLab.registry && NetLab.registry.registerScenario) NetLab.registry.registerScenario(sc);
+  if (typeof module !== 'undefined' && module.exports) module.exports = sc;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+```
+
+### 2.6 Bộ ca kiểm thử `tests[]`
+
+Mỗi ca gồm `id`, `category`, `input`, `expected`, `explanation`. `category` thuộc `success`, `fault`, `route-change`, `edge`.
+
+`tests/run_all.js` thực thi ca như sau:
+
+1. Nạp kịch bản với `variantId` trong `input`.
+2. Dựng hành động `{type, from, to, ttl: 64}` rồi gọi `engine.build`.
+3. Rút ra hai giá trị: `status` và `hopSequence` (gộp các bước liền kề trên cùng thiết bị).
+4. So khớp **tập con**: chỉ các trường có trong `expected` mới được kiểm tra.
+
+Vì vậy `expected` chỉ nên chứa `status` và/hoặc `hopSequence`. Các giá trị `status` đang dùng:
+
+- `ok`: ping thành công cả hai chiều.
+- `fail`: gói tin bị loại ở chặng đi.
+- `không nhận được phản hồi`: chặng đi tới đích nhưng chặng về thất bại.
+
+Hai điểm cần lưu ý khi viết ca:
+
+- Bộ chạy hiện chỉ truyền `type`, `from`, `to`, `ttl`. Với `type: 'arp'`, engine cần `targetIp` nên ca sẽ báo lỗi `engine.build: action.targetIp là bắt buộc cho arp`. Hãy dùng `type: 'ping'` cho `tests[]`; luồng ARP khai báo trong `traffic` để minh hoạ.
+- Switch là thiết bị L2 trong suốt, không sinh bước mô phỏng, nên không xuất hiện trong `hopSequence`.
+
+Ví dụ `hopSequence` của một ping hai chiều qua hai router là `['laptop1', 'r1', 'r2', 'srv1', 'r2', 'r1', 'laptop1']` (xem `scenarios/ref_hai_router.js`).
+
+### 2.7 Danh sách kiểm tra kịch bản
+
+- [ ] `id` trùng tên tệp, không dấu, không khoảng trắng.
+- [ ] Mọi host đi ra ngoài subnet có tuyến `0.0.0.0/0` qua gateway.
+- [ ] Mọi router có tuyến `connected` cho từng cổng L3 đang bật.
+- [ ] `arpCache` khởi đầu là `{}` nếu muốn quan sát ARP.
+- [ ] Mọi `link.a`/`link.b` trỏ đúng thiết bị và giao diện.
+- [ ] Hai giao diện L3 nối trực tiếp cùng subnet.
+- [ ] Mỗi biến thể có `id`, `label`, `mutations`; id không trùng.
+- [ ] `challenge.answer` trùng một `id` trong `hypotheses`.
+- [ ] `tests[]` dùng `type: 'ping'` và kỳ vọng chỉ gồm `status`, `hopSequence`.
+- [ ] Không còn chuỗi `(chờ tích hợp)` trong nội dung thật.
+
+## 3. Viết một giao thức định tuyến
+
+### 3.1 Hợp đồng
+
+```js
+NetLab.registry.registerProtocol('rip', {
+  computeRoutes: function (topology, params) {
+    return {
+      tables: {
+        r1: [ /* các mục tuyến */ ],
+        r2: [ /* ... */ ]
+      },
+      log: ['...'] // tuỳ chọn
+    };
+  }
+});
+```
+
+- `kind`: chuỗi duy nhất; đăng ký trùng sẽ ném lỗi.
+- `topology`: trạng thái đã áp baseline và đột biến biến thể, có `devices`, `links`.
+- `params`: đối tượng lấy từ `scenario.protocol.params`.
+- `tables`: ánh xạ `deviceId → mảng tuyến`. `loadScenario` **thay toàn bộ** `routingTable` của thiết bị bằng mảng này.
+
+Vì bảng bị thay toàn bộ, `computeRoutes` phải tự sinh cả tuyến `connected` cho các cổng đang bật. Nếu chỉ trả về tuyến học được, router sẽ mất khả năng giao trực tiếp.
+
+Mỗi mục tuyến cần đủ: `prefix`, `prefixLen`, `nextHop`, `outIf`, `metric`, `source`, `adminDistance`. Với tuyến học từ giao thức, dùng `source: 'rip'` và `adminDistance: 120` (giá trị quy ước của RIP).
+
+### 3.2 Ví dụ kiểu RIP (đếm số hop)
+
+Tệp `js/core/protocols/rip.js`. Thuật toán là distance-vector đơn giản: khởi tạo tuyến connected, sau đó lan truyền qua các liên kết đang bật, mỗi chặng cộng 1, dừng ở 15 hop. Chỉ cập nhật khi metric mới nhỏ hơn metric hiện có, nên kết quả hội tụ và tất định.
+
+```js
+/**
+ * js/core/protocols/rip.js
+ * Giao thức kiểu RIP: đếm số hop, tối đa 15 hop.
+ */
+(function (root) {
+  const NetLab = root.NetLab = root.NetLab || {};
+  const net = NetLab.net || (typeof require !== 'undefined' ? require('../net.js') : null);
+
+  const DEFAULT_MAX_HOPS = 15;
+
+  function isRouter(dev) {
+    return dev.type === 'router' || dev.type === 'isp' || dev.type === 'as-border';
+  }
+
+  function endpointIp(topology, link, devId) {
+    const side = link.a.dev === devId ? link.b : link.a;
+    for (let i = 0; i < topology.devices.length; i++) {
+      const dev = topology.devices[i];
+      if (dev.id !== side.dev) continue;
+      for (let j = 0; j < dev.interfaces.length; j++) {
+        const iface = dev.interfaces[j];
+        if (iface.name === side.if || iface.id === side.if) {
+          return { ip: iface.ip, name: iface.name, up: iface.up };
+        }
+      }
+    }
+    return null;
+  }
+
+  function localIf(dev, link) {
+    const side = link.a.dev === dev.id ? link.a : link.b;
+    for (let i = 0; i < dev.interfaces.length; i++) {
+      const iface = dev.interfaces[i];
+      if (iface.name === side.if || iface.id === side.if) return iface;
+    }
+    return null;
+  }
+
+  function computeRoutes(topology, params) {
+    const maxHops = (params && Number(params.maxHops)) || DEFAULT_MAX_HOPS;
+    const routers = topology.devices.filter(isRouter);
+    const dist = {}; // devId → Map("prefix/len" → {prefix, prefixLen, nextHop, outIf, metric})
+    const log = [];
+
+    // 1. Tuyến connected cho mọi cổng L3 đang bật.
+    routers.forEach((dev) => {
+      dist[dev.id] = new Map();
+      dev.interfaces.forEach((iface) => {
+        if (!iface.up || !iface.ip || iface.prefixLen === null || iface.prefixLen === undefined) return;
+        const prefix = net.networkOf(iface.ip, iface.prefixLen);
+        const key = prefix + '/' + iface.prefixLen;
+        if (!dist[dev.id].has(key)) {
+          dist[dev.id].set(key, {
+            prefix: prefix, prefixLen: iface.prefixLen,
+            nextHop: null, outIf: iface.name, metric: 0
+          });
+        }
+      });
+    });
+
+    // 2. Lan truyền distance-vector, tối đa maxHops vòng.
+    for (let round = 0; round < maxHops + 1; round++) {
+      let changed = false;
+      routers.forEach((dev) => {
+        topology.links.forEach((link) => {
+          if (!link.up) return;
+          if (link.a.dev !== dev.id && link.b.dev !== dev.id) return;
+          const neighborId = link.a.dev === dev.id ? link.b.dev : link.a.dev;
+          const neighbor = topology.devices.find((d) => d.id === neighborId);
+          if (!neighbor || !isRouter(neighbor)) return;
+          const local = localIf(dev, link);
+          const far = endpointIp(topology, link, dev.id);
+          if (!local || !local.up || !far || !far.up || !far.ip) return;
+
+          dist[neighbor.id].forEach((route) => {
+            const metric = route.metric + 1;
+            if (metric > maxHops) return;
+            const key = route.prefix + '/' + route.prefixLen;
+            const current = dist[dev.id].get(key);
+            if (current && current.metric <= metric) return;
+            dist[dev.id].set(key, {
+              prefix: route.prefix, prefixLen: route.prefixLen,
+              nextHop: far.ip, outIf: local.name, metric: metric
+            });
+            changed = true;
+          });
+        });
+      });
+      log.push('Vòng ' + round + ': ' + (changed ? 'có cập nhật tuyến' : 'đã hội tụ'));
+      if (!changed) break;
+    }
+
+    // 3. Chuyển sang định dạng bảng định tuyến của mô phỏng.
+    const tables = {};
+    routers.forEach((dev) => {
+      tables[dev.id] = Array.from(dist[dev.id].values()).map((route) => ({
+        prefix: route.prefix,
+        prefixLen: route.prefixLen,
+        nextHop: route.nextHop,
+        outIf: route.outIf,
+        metric: route.metric,
+        source: route.nextHop === null ? 'connected' : 'rip',
+        adminDistance: route.nextHop === null ? 0 : 120
+      }));
+    });
+
+    return { tables: tables, log: log };
+  }
+
+  NetLab.registry.registerProtocol('rip', { computeRoutes: computeRoutes });
+  if (typeof module !== 'undefined' && module.exports) module.exports = { computeRoutes: computeRoutes };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+```
+
+### 3.3 Gắn giao thức vào kịch bản
+
+```js
+protocol: {
+  kind: 'rip',
+  params: { maxHops: 15 }
+}
+```
+
+`loadScenario` chỉ chạy `computeRoutes` khi `kind` đã được đăng ký. Nếu chưa, kịch bản vẫn nạp nhưng bảng định tuyến giữ nguyên như khai báo trong topology. Lỗi trong `computeRoutes` sẽ làm `loadScenario` ném lỗi; giao diện hiển thị thông báo không nạp được kịch bản.
+
+### 3.4 Kiểm chứng ví dụ
+
+Chạy ví dụ trên topology của `ref_hai_router` cho kết quả:
+
+```
+Vòng 0: có cập nhật tuyến | Vòng 1: đã hội tụ
+r1:
+  192.168.10.0/24  nextHop=null  outIf=g0/0  metric=0  source=connected  AD=0
+  10.0.12.0/30  nextHop=null  outIf=g0/1  metric=0  source=connected  AD=0
+  10.0.13.0/30  nextHop=null  outIf=g0/2  metric=0  source=connected  AD=0
+  10.20.0.0/24  nextHop=10.0.12.2  outIf=g0/1  metric=1  source=rip  AD=120
+r2:
+  10.20.0.0/24  nextHop=null  outIf=g0/0  metric=0  source=connected  AD=0
+  10.0.12.0/30  nextHop=null  outIf=g0/1  metric=0  source=connected  AD=0
+  10.0.13.0/30  nextHop=null  outIf=g0/2  metric=0  source=connected  AD=0
+  192.168.10.0/24  nextHop=10.0.12.1  outIf=g0/1  metric=1  source=rip  AD=120
+ping laptop1 -> srv1: {"status":"ok"}
+hopSequence: ["laptop1","r1","r2","srv1","r2","r1","laptop1"]
+```
+
+### 3.5 Lưu ý
+
+- Không đọc `Date.now()` hoặc sinh số ngẫu nhiên; thứ tự duyệt phải ổn định.
+- Nếu có nhiều đường cùng metric, giữ tuyến xuất hiện trước để kết quả lặp lại được.
+- Không tạo tuyến mặc định `0.0.0.0/0` nếu kịch bản không yêu cầu; host vẫn cần tuyến mặc định tĩnh của riêng nó.
+- `kind` của giao thức phải khớp enum trong lược đồ (`static`, `rip`, `ospf`, `bgp`).
+
+## 4. Viết một panel
+
+### 4.1 Hợp đồng
+
+```js
+NetLab.registry.registerPanel('panel_ten_panel', {
+  title: 'Tiêu đề hiển thị',
+  mount: function (el, api) { /* dựng DOM một lần */ },
+  onStep: function (step) { /* cập nhật theo bước */ },
+  onEvent: function (evt) { /* cập nhật theo sự kiện */ },
+  onReset: function () { /* xoá nội dung */ }
+});
+```
+
+- `mount(el, api)` là hàm bắt buộc. `el` là một `<div>` đã có sẵn trong thẻ panel; panel tự thêm nội dung vào đó.
+- `api` gồm `{ store, bus, registry }`:
+  - `api.store.get()` trả bản sao nông của `{scenarioId, variantId, state, trace, index}`.
+  - `api.store.subscribe(fn)` nhận thông báo mỗi khi trạng thái đổi; trả hàm huỷ đăng ký.
+  - `api.registry` dùng để tra kịch bản (`getScenario`, `listScenarios`).
+  - `api.bus` phát/nhận sự kiện nội bộ nếu cần.
+- `title` mặc định bằng `id` nếu bỏ trống. `onStep`, `onEvent`, `onReset` là tuỳ chọn.
+- Mã panel phải duy nhất; đăng ký trùng ném lỗi. Panel thiếu `mount` cũng ném lỗi.
+
+### 4.2 Vòng đời thực tế
+
+| Thời điểm | Hàm được gọi |
+|---|---|
+| Mở tab "Phòng thí nghiệm" lần đầu | `mount(el, api)` cho mọi panel, đúng thứ tự đăng ký |
+| Đổi kịch bản hoặc biến thể | `onReset()` |
+| Bấm "Chạy" | `onReset()`, sau đó phát sự kiện và `onStep` cho bước hiện tại |
+| Tiến một bước | Các `onEvent` mới trong khoảng bước, rồi `onStep(step)` |
+| Lùi một bước | `onReset()`, phát lại toàn bộ sự kiện từ đầu tới bước hiện tại, rồi `onStep(step)` |
+| "Đặt lại" của thanh phát | `onReset()`, rồi `onStep` của bước 0 |
+
+Vì vậy panel phải **idempotent**: `onReset` đưa về trạng thái rỗng, và mọi thứ sau đó được dựng lại từ dữ liệu nhận được. Không cố "hoàn tác" thay đổi trong `onStep`.
+
+Lỗi ném ra từ `onStep`/`onEvent`/`onReset` bị bỏ qua để một panel hỏng không làm sập giao diện. Lỗi trong `mount` được hiển thị ngay trong thẻ panel.
+
+### 4.3 Dữ liệu trong `step` và `evt`
+
+`step` có các trường:
+
+| Trường | Ý nghĩa |
+|---|---|
+| `i` | Chỉ số bước, bắt đầu từ 0. |
+| `tSim` | Thời gian mô phỏng (ms), mỗi bước cách nhau 10 ms. |
+| `deviceId` | Thiết bị đang xử lý. |
+| `linkId` | Liên kết liên quan, hoặc `null`. |
+| `phase` | Giai đoạn, xem bảng dưới. |
+| `packet.l2` | `{srcMac, dstMac, vlan?}`. |
+| `packet.l3` | `{srcIp, dstIp, proto, ttlBefore, ttlAfter}`. |
+| `lookup` | `{matched, chosen, nextHop, outIf}` hoặc `null`. |
+| `arpOp` | `{op, ip, result, mac?}` hoặc `null`. |
+| `status` | `ok`, `fail`, `pending`. |
+| `stateAfter` | Bản sao trạng thái sau bước. |
+
+Các giá trị `phase`:
+
+| `phase` | Nghĩa |
+|---|---|
+| `xac_dinh_dich` | Xác định đích cùng subnet hay khác subnet. |
+| `kiem_tra_arp` | Tra ARP cache hoặc phát ARP Request. |
+| `chuyen_frame_lan` | Gửi frame trong LAN. |
+| `router_nhan_tra_bang` | Router nhận gói và tra bảng định tuyến. |
+| `chon_next_hop` | Chọn next-hop. |
+| `tao_lai_frame` | Router đóng gói lại frame. |
+| `den_dich_hoac_that_bai` | Gói đến đích hoặc kết thúc thất bại. |
+| `bao_loi` | Báo lỗi. |
+
+`evt` có các trường `id`, `tSim`, `type`, `deviceIds`, `linkIds`, `severity`, `desc`, `cause`, `confirmed`, `stepIndex`. `severity` thường là `info`, `success` hoặc `fail`; `confirmed: false` đánh dấu kết luận còn nghi vấn. Các `type` thường gặp: `route.lookup`, `route.match`, `route.active`, `arp.request`, `arp.reply`, `arp.cache.new`, `arp.cache.changed`, `link.state`, `unreachable`, `ttl.expired`, `recovered`, `forward.fail`.
+
+### 4.4 Ví dụ panel
+
+Tệp `js/modules/vi_du_goi_tin/panel.js`:
+
+```js
+/**
+ * js/modules/vi_du_goi_tin/panel.js
+ * Panel ví dụ: hiển thị gói tin của bước hiện tại và sự kiện lỗi gần nhất.
+ */
+(function (root) {
+  const NetLab = root.NetLab = root.NetLab || {};
+  const doc = root.document;
+
+  const ui = { title: null, body: null, lastEvent: null };
+
+  function h(tag, className, text) {
+    const el = doc.createElement(tag);
+    if (className) el.className = className;
+    if (text !== undefined && text !== null) el.textContent = text;
+    return el;
+  }
+
+  function emptyText() {
+    ui.title.textContent = 'Chưa có bước nào';
+    ui.body.textContent = 'Bấm "Chạy" rồi dùng thanh phát để xem dữ liệu.';
+    ui.lastEvent.textContent = '';
+  }
+
+  NetLab.registry.registerPanel('panel_vi_du_goi_tin', {
+    title: 'Ví dụ: gói tin đang xem',
+    mount: function (el) {
+      el.appendChild(h('p', 'lab-stub-note', 'Panel ví dụ: chỉ đọc dữ liệu bước hiện tại.'));
+      ui.title = h('h4', 'lab-subtitle', '');
+      ui.body = h('p', 'lab-kv', '');
+      ui.lastEvent = h('p', 'lab-kv', '');
+      el.appendChild(ui.title);
+      el.appendChild(ui.body);
+      el.appendChild(ui.lastEvent);
+      emptyText();
+    },
+    onStep: function (step) {
+      if (!ui.title) return;
+      const l3 = step.packet && step.packet.l3;
+      const l2 = step.packet && step.packet.l2;
+      ui.title.textContent = 'Bước ' + step.i + ' — ' + step.phase;
+      if (!l3) {
+        ui.body.textContent = 'Bước không có gói IP.';
+        return;
+      }
+      ui.body.textContent =
+        l3.srcIp + ' → ' + l3.dstIp + ' (' + l3.proto + ')' +
+        ' | TTL ' + l3.ttlBefore + ' → ' + l3.ttlAfter +
+        ' | MAC ' + (l2 ? l2.srcMac + ' → ' + l2.dstMac : '—');
+    },
+    onEvent: function (evt) {
+      if (!ui.lastEvent) return;
+      if (evt.severity === 'fail') {
+        ui.lastEvent.textContent = 'Sự kiện lỗi: ' + evt.type + ' — ' + evt.desc;
+      }
+    },
+    onReset: function () {
+      if (ui.title) emptyText();
+    }
+  });
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+```
+
+### 4.5 Lưu ý
+
+- `mount` chạy **một lần**; giữ tham chiếu DOM trong biến của module thay vì tìm lại mỗi bước.
+- Không dùng `innerHTML` với dữ liệu từ kịch bản nếu không cần; ưu tiên `textContent` để tránh chèn HTML ngoài ý muốn.
+- Không dùng `fetch()`/XHR, không tải ảnh hay font từ mạng.
+- Panel không được giả định `mount` chạy lại khi đổi kịch bản; chỉ `onReset` được gọi.
+- Nếu cần đọc trạng thái mới nhất ngoài `onStep`/`onEvent`, dùng `api.store.get()` hoặc `api.store.subscribe`.
+- CSS của panel nên đặt trong `css/app.css` hoặc một tệp CSS riêng được thêm bằng thẻ `<link>`.
+
+## 5. Quy ước tệp, thẻ script và kiểm tra
+
+### 5.1 Tên tệp
+
+| Loại | Vị trí | Quy ước |
+|---|---|---|
+| Kịch bản | `scenarios/<id>.js` | `<id>` trùng trường `id`; không dấu, không khoảng trắng, chữ thường. |
+| Panel | `js/modules/<ten-module>/*.js` | `<ten-module>` không dấu, không khoảng trắng; có thể nhiều tệp. |
+| Giao thức | `js/core/protocols/<kind>.js` | `<kind>` trùng tham số của `registerProtocol`. |
+| CSS | `css/` | Tên tệp không dấu; thêm `<link>` trong `index.html`. |
+
+Không đặt kịch bản hoặc panel mới vào `_stubs/` hay đổi tên các tệp mẫu.
+
+### 5.2 Thẻ `<script>` trong `index.html`
+
+Chèn theo đúng nhóm:
+
+- Giao thức: ngay sau `js/core/engine.js`, trước các panel và kịch bản.
+- Panel: sau `js/modules/_stubs/stubs.js`, trước các kịch bản.
+- Kịch bản: trong khối `scenarios/`, sau các tệp đang có, trước `js/legacy/legacy.js`.
+
+Ví dụ sau khi thêm:
+
+```html
+<script src="js/core/engine.js"></script>
+<script src="js/core/protocols/rip.js"></script>
+<script src="js/modules/_stubs/stubs.js"></script>
+<script src="js/modules/vi_du_goi_tin/panel.js"></script>
+<script src="scenarios/ref_hai_router.js"></script>
+<script src="scenarios/_skeleton_A.js"></script>
+<script src="scenarios/_skeleton_X.js"></script>
+<script src="scenarios/dummy_huong_dan.js"></script>
+<script src="js/legacy/legacy.js"></script>
+<script src="js/ui/shell.js"></script>
+```
+
+Luôn giữ `js/ui/shell.js` ở cuối.
+
+### 5.3 Kiểm tra cục bộ
+
+Chạy tại thư mục gốc của ứng dụng (nơi có `package.json`):
+
+```bat
+node tests\validate_scenarios.js
+node --test
+node tests\run_all.js
+```
+
+- `validate_scenarios.js` kiểm tra lược đồ từng kịch bản và in `[OK]` hoặc danh sách lỗi.
+- `node --test` chạy toàn bộ kiểm thử đơn vị. Trên bản hiện tại: **75 kiểm thử, 75 đạt**.
+- `run_all.js` chạy các ca `tests[]` và ghi `tests/results.json`. Trên bản hiện tại: **9 ca, 9 đạt**.
+
+Hai lệnh cuối phải giữ trạng thái xanh (0 thất bại). Khi thêm một kịch bản có ca kiểm thử, số ca của `run_all.js` tăng lên; đó là bình thường, miễn là số thất bại bằng 0.
+
+Lưu ý về phiên bản Node: với Node 26.3.0, truyền thư mục vào `node --test tests` báo `Cannot find module ...\tests`. Hãy chạy `node --test` ở thư mục gốc; Node tự tìm các tệp `*.test.js`.
+
+Kiểm tra giao diện bằng trình duyệt:
+
+1. Mở `index.html` trực tiếp qua `file://`.
+2. Mở DevTools → Console, xác nhận không có lỗi.
+3. Vào tab "Phòng thí nghiệm", chọn kịch bản mới, đổi biến thể, chạy ping và ARP.
+4. Nếu có script kiểm thử giao diện tự động, chạy `python tests\smoke_test.py`.
+
+## 6. Nơi giao nộp
+
+### 6.1 Cấu trúc giao nộp
+
+Đặt tệp hoàn chỉnh vào:
+
+```
+03_intake/modules/<ten-module>/
+├── scenarios/<id>.js
+├── js/modules/<ten-module>/*.js
+├── js/core/protocols/<kind>.js     (nếu có)
+├── css/<ten-module>.css            (nếu có)
+└── ghi_chu.md                      (mô tả ngắn, nếu cần)
+```
+
+Giữ nguyên đường dẫn tương đối bên trong để bước hợp nhất sau này chép đè đúng vị trí. Không đặt tệp lẻ trực tiếp vào `app/` khi chưa thống nhất, và không sửa các tệp lõi ngoài phạm vi mô-đun.
+
+### 6.2 Trước khi giao
+
+- [ ] `node tests\validate_scenarios.js` báo `[OK]` cho kịch bản mới.
+- [ ] `node --test` không có ca thất bại.
+- [ ] `node tests\run_all.js` không có ca thất bại.
+- [ ] Mở giao diện, không có lỗi console.
+- [ ] Kịch bản hiển thị đúng tiêu đề, biến thể, sơ đồ và panel.
+- [ ] Không còn chuỗi `(chờ tích hợp)` trong nội dung thật.
+
+## Phụ lục A. Lỗi thường gặp
+
+| Thông báo | Nguyên nhân | Cách sửa |
+|---|---|---|
+| `Topology không hợp lệ: ... khác subnet` | Hai giao diện L3 nối trực tiếp không cùng dải. | Sửa IP/prefix hoặc đặt switch ở giữa. |
+| `không tìm thấy liên kết "<id>"` | Mutation dùng sai `linkId`. | Đối chiếu `topology.links[].id`. |
+| `không tìm thấy giao diện "<if>"` | `if.set` hoặc đầu liên kết dùng sai tên cổng. | Dùng đúng `interfaces[].name` hoặc `.id`. |
+| `registerScenario: mã kịch bản "..." đã được đăng ký` | Trùng `id` hoặc thêm thẻ script hai lần. | Đổi `id` hoặc bỏ thẻ trùng. |
+| `engine.build: action.targetIp là bắt buộc cho arp` | Ca `tests[]` dùng `type: 'arp'`. | Dùng `type: 'ping'` trong `tests[]`. |
+| Ping ra ngoài subnet trả `fail` ngay tại host | Host thiếu tuyến mặc định. | Thêm `0.0.0.0/0` qua gateway (mục 2.4). |
+| `Không nạp được kịch bản: ...` | Lỗi trong topology, mutation hoặc `computeRoutes`. | Đọc thông báo lỗi trong khung cảnh báo của tab thí nghiệm. |
+
+## Phụ lục B. Tra nhanh trạng thái
+
+| Giá trị | Nơi dùng | Nghĩa |
+|---|---|---|
+| `ok` | `trace.result.status`, `step.status` | Thành công. |
+| `fail` | `trace.result.status`, `step.status` | Thất bại. |
+| `pending` | `step.status` | Đang chờ, thường là bước ARP Request. |
+| `không nhận được phản hồi` | `trace.result.status` | Chặng đi tới nơi nhưng chặng về thất bại. |
+| `info` / `success` / `fail` | `event.severity` | Mức độ sự kiện. |
+| `confirmed: false` | `event.confirmed` | Kết luận còn nghi vấn. |

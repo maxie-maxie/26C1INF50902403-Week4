@@ -1,0 +1,9 @@
+{
+  "name": "netlab-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "cases": "node tests/run_all.js"
+  }
+}
