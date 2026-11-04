@@ -1,15 +1,11 @@
-# Ignore other courses/weeks, agent configs, and orchestration/draft working folders
-/.agents/
-/Group project week 3/
-/Group project week 4/
-/Lab 2/
-/Project/
-/Networking.rar
+# Ignore internal working folders and drafts
 /_orchestration/
 /Group drop/
 /01_drafts/
+/01_generated/
 /02_revised/
 /03_intake/
+/Chapter 4 - TASK.pdf
 
 # Ignore transient test outputs, Word lock files, and node_modules
 ~$*
