@@ -32,6 +32,7 @@ SCRIPT_ORDER = [
     "js/core/registry.js",
     "js/core/store.js",
     "js/core/engine.js",
+    "js/modules/packet_inspector/packet_inspector.js",
     "js/modules/_stubs/stubs.js",
     "scenarios/ref_hai_router.js",
     "scenarios/_skeleton_A.js",
@@ -44,7 +45,7 @@ SCRIPT_ORDER = [
     "js/ui/shell.js",
 ]
 
-STYLE_ORDER = ["css/legacy.css", "css/app.css"]
+STYLE_ORDER = ["css/legacy.css", "css/app.css", "css/packet_inspector.css"]
 
 REMOTE_TABLE = {
     1: [

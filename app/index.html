@@ -6,6 +6,7 @@
   <title>ARP và định tuyến · Phòng thí nghiệm mạng</title>
   <link rel="stylesheet" href="css/legacy.css">
   <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/packet_inspector.css">
 </head>
 <body class="app-shell" data-view="legacy">
   <header class="app-header">
@@ -276,21 +277,33 @@
     <section id="viewLab" class="view"><div id="lab"></div></section>
   </main>
 
+  <!-- Core Engine & State -->
   <script src="js/core/net.js"></script>
   <script src="js/core/model.js"></script>
   <script src="js/core/bus.js"></script>
   <script src="js/core/registry.js"></script>
   <script src="js/core/store.js"></script>
   <script src="js/core/engine.js"></script>
+
+  <!-- Module: ARP/L2 & Packet Inspector -->
+  <script src="js/modules/packet_inspector/packet_inspector.js"></script>
+
+  <!-- Panel Stubs (for unintegrated panels) -->
   <script src="js/modules/_stubs/stubs.js"></script>
+
+  <!-- Scenarios -->
   <script src="scenarios/ref_hai_router.js"></script>
   <script src="scenarios/_skeleton_A.js"></script>
   <script src="scenarios/_skeleton_B.js"></script>
   <script src="scenarios/_skeleton_C.js"></script>
   <script src="scenarios/_skeleton_D.js"></script>
   <script src="scenarios/_skeleton_X.js"></script>
+
+  <!-- Base Walkthrough & Module: Interactive Topology Editor -->
   <script src="js/legacy/legacy.js"></script>
   <script src="js/modules/topology/topology_editor.js"></script>
+
+  <!-- Lab UI Shell -->
   <script src="js/ui/shell.js"></script>
   <script>
     (function () {

@@ -1,0 +1,115 @@
+/* Module: ARP/L2 & Packet Inspector (panel_packet_inspector) */
+#viewLab .lab-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#viewLab .lab-inspector-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#viewLab .lab-inspector-head .lab-subtitle {
+  margin: 0;
+}
+
+#viewLab .lab-inspector-badge {
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 10px;
+  border: 1px solid #cad6e2;
+  background: var(--sim-soft, #eaf3fb);
+  color: var(--sim-navy, #122b49);
+}
+
+#viewLab .lab-inspector-badge.lab-status-ok {
+  background: #e6f7f3;
+  border-color: #a8e0d5;
+  color: #0b6e64;
+}
+
+#viewLab .lab-inspector-badge.lab-status-fail {
+  background: #fff0f0;
+  border-color: #edb9b9;
+  color: #a82b2b;
+}
+
+#viewLab .lab-inspector-badge.lab-status-pending {
+  background: #fff5e5;
+  border-color: #f2d399;
+  color: #8d5511;
+}
+
+#viewLab .lab-hop-callout {
+  background: #f2fbf9;
+  border: 1px solid #bce6de;
+  border-left: 4px solid var(--sim-teal, #0f9d91);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  color: var(--sim-ink, #19283a);
+  line-height: 1.45;
+}
+
+#viewLab .lab-hop-callout.lab-hop-warn {
+  background: #fff7f7;
+  border-color: #edb9b9;
+  border-left-color: var(--sim-red, #d94848);
+}
+
+#viewLab .lab-inspector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+#viewLab .lab-inspector-section {
+  border: 1px solid #e2eaf2;
+  border-radius: 10px;
+  background: #fbfdff;
+  padding: 8px 10px;
+}
+
+#viewLab .lab-inspector-sec-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--sim-navy, #122b49);
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e7edf4;
+}
+
+#viewLab .lab-lpm-table,
+#viewLab .lab-arp-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+#viewLab .lab-lpm-table th,
+#viewLab .lab-lpm-table td,
+#viewLab .lab-arp-table th,
+#viewLab .lab-arp-table td {
+  text-align: left;
+  padding: 4px 6px;
+  border-bottom: 1px solid #e7edf4;
+}
+
+#viewLab .lab-lpm-table th,
+#viewLab .lab-arp-table th {
+  color: var(--sim-muted, #65758a);
+  font-weight: 700;
+  background: #f4f8fc;
+}
+
+#viewLab .lab-lpm-table tr.lab-lpm-chosen,
+#viewLab .lab-arp-table tr.lab-arp-updated {
+  background: #e6f7f3;
+  font-weight: 700;
+}

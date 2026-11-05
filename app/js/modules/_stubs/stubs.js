@@ -86,61 +86,63 @@
     inspector.live.appendChild(h('p', 'lab-inspector-empty', 'Chưa có bước nào — hãy bấm "Chạy" rồi dùng thanh phát từng bước.'));
   }
 
-  registry.registerPanel('panel_packet_inspector', {
-    title: 'Kiểm tra gói tin (Packet Inspector)',
-    mount(el) {
-      inspector.live = h('div', 'lab-inspector');
-      el.appendChild(stubNote());
-      el.appendChild(inspector.live);
-      inspectorRenderEmpty();
-    },
-    onStep(step) {
-      if (!inspector.live) return;
-      clearEl(inspector.live);
+  if (!NetLab.packetInspector) {
+    registry.registerPanel('panel_packet_inspector', {
+      title: 'Kiểm tra gói tin (Packet Inspector)',
+      mount(el) {
+        inspector.live = h('div', 'lab-inspector');
+        el.appendChild(stubNote());
+        el.appendChild(inspector.live);
+        inspectorRenderEmpty();
+      },
+      onStep(step) {
+        if (!inspector.live) return;
+        clearEl(inspector.live);
 
-      inspector.live.appendChild(h('h4', 'lab-subtitle', `Bước ${step.i} — ${phaseLabel(step.phase)}`));
-      const box = h('div', 'lab-kv-list');
-      box.appendChild(kvRow('Thiết bị', step.deviceId));
-      box.appendChild(kvRow('Liên kết', step.linkId));
+        inspector.live.appendChild(h('h4', 'lab-subtitle', `Bước ${step.i} — ${phaseLabel(step.phase)}`));
+        const box = h('div', 'lab-kv-list');
+        box.appendChild(kvRow('Thiết bị', step.deviceId));
+        box.appendChild(kvRow('Liên kết', step.linkId));
 
-      const l2 = step.packet && step.packet.l2 ? step.packet.l2 : null;
-      if (l2) {
-        box.appendChild(kvRow('MAC nguồn (L2)', l2.srcMac, true));
-        box.appendChild(kvRow('MAC đích (L2)', l2.dstMac, true));
-        if (l2.vlan !== undefined && l2.vlan !== null) box.appendChild(kvRow('VLAN', l2.vlan));
-      }
-      const l3 = step.packet && step.packet.l3 ? step.packet.l3 : null;
-      if (l3) {
-        box.appendChild(kvRow('IP nguồn (L3)', l3.srcIp, true));
-        box.appendChild(kvRow('IP đích (L3)', l3.dstIp, true));
-        if (l3.proto) box.appendChild(kvRow('Giao thức', l3.proto));
-        if (l3.ttlBefore !== undefined || l3.ttlAfter !== undefined) {
-          box.appendChild(kvRow('TTL', `${valueOrDash(l3.ttlBefore)} → ${valueOrDash(l3.ttlAfter)}`));
+        const l2 = step.packet && step.packet.l2 ? step.packet.l2 : null;
+        if (l2) {
+          box.appendChild(kvRow('MAC nguồn (L2)', l2.srcMac, true));
+          box.appendChild(kvRow('MAC đích (L2)', l2.dstMac, true));
+          if (l2.vlan !== undefined && l2.vlan !== null) box.appendChild(kvRow('VLAN', l2.vlan));
         }
+        const l3 = step.packet && step.packet.l3 ? step.packet.l3 : null;
+        if (l3) {
+          box.appendChild(kvRow('IP nguồn (L3)', l3.srcIp, true));
+          box.appendChild(kvRow('IP đích (L3)', l3.dstIp, true));
+          if (l3.proto) box.appendChild(kvRow('Giao thức', l3.proto));
+          if (l3.ttlBefore !== undefined || l3.ttlAfter !== undefined) {
+            box.appendChild(kvRow('TTL', `${valueOrDash(l3.ttlBefore)} → ${valueOrDash(l3.ttlAfter)}`));
+          }
+        }
+        if (step.lookup) {
+          const chosen = step.lookup.chosen;
+          box.appendChild(kvRow(
+            'Tuyến chọn (LPM)',
+            chosen ? `${chosen.prefix}/${chosen.prefixLen}` : 'không có tuyến phù hợp',
+            true
+          ));
+          if (chosen && chosen.nextHop) box.appendChild(kvRow('Next-hop', chosen.nextHop, true));
+          if (chosen && chosen.outIf) box.appendChild(kvRow('Cổng ra', chosen.outIf));
+          if (Array.isArray(step.lookup.matched)) box.appendChild(kvRow('Số tuyến khớp', step.lookup.matched.length));
+        }
+        if (step.arpOp) {
+          const arp = step.arpOp;
+          const arpText = `${arp.op} ${valueOrDash(arp.ip)} → ${valueOrDash(arp.result)}${arp.mac ? ' (' + arp.mac + ')' : ''}`;
+          box.appendChild(kvRow('Thao tác ARP', arpText, true));
+        }
+        box.appendChild(kvRow('Trạng thái bước', statusLabel(step.status)));
+        inspector.live.appendChild(box);
+      },
+      onReset() {
+        if (inspector.live) inspectorRenderEmpty();
       }
-      if (step.lookup) {
-        const chosen = step.lookup.chosen;
-        box.appendChild(kvRow(
-          'Tuyến chọn (LPM)',
-          chosen ? `${chosen.prefix}/${chosen.prefixLen}` : 'không có tuyến phù hợp',
-          true
-        ));
-        if (chosen && chosen.nextHop) box.appendChild(kvRow('Next-hop', chosen.nextHop, true));
-        if (chosen && chosen.outIf) box.appendChild(kvRow('Cổng ra', chosen.outIf));
-        if (Array.isArray(step.lookup.matched)) box.appendChild(kvRow('Số tuyến khớp', step.lookup.matched.length));
-      }
-      if (step.arpOp) {
-        const arp = step.arpOp;
-        const arpText = `${arp.op} ${valueOrDash(arp.ip)} → ${valueOrDash(arp.result)}${arp.mac ? ' (' + arp.mac + ')' : ''}`;
-        box.appendChild(kvRow('Thao tác ARP', arpText, true));
-      }
-      box.appendChild(kvRow('Trạng thái bước', statusLabel(step.status)));
-      inspector.live.appendChild(box);
-    },
-    onReset() {
-      if (inspector.live) inspectorRenderEmpty();
-    }
-  });
+    });
+  }
 
 
   const timeline = { events: [], list: null, counter: null };
