@@ -6,17 +6,23 @@ Offline browser-based network simulation lab for Chapter 4 Computer Networks (`A
 
 ```text
 .
-├── app/                  # Web application (runs offline via file://, no server needed)
-│   ├── css/              # App layout and legacy simulation styles
+├── app/                              # Web application (runs offline via file://, no server needed)
+│   ├── css/                          # App shell, legacy walkthrough, and module stylesheets
+│   │   ├── app.css                   # Lab shell & shared panel styles
+│   │   ├── legacy.css                # Base simulator & interactive topology styles
+│   │   └── packet_inspector.css      # [Module] ARP/L2 & Packet Inspector styles
 │   ├── js/
-│   │   ├── core/         # Simulation engine, packet model, LPM routing, ARP cache & bus
-│   │   ├── legacy/       # Base step-by-step ARP and routing walkthrough
-│   │   ├── modules/      # Pluggable lab panels and interactive topology editor
-│   │   └── ui/           # Navigation shell and tab view switcher
-│   ├── scenarios/        # Reference scenarios and skeleton templates for member tasks
-│   ├── schema/           # JSON schema for scenario validation
-│   └── tests/            # Unit tests, validator scripts, and browser checks
-└── docs/                 # Assignment prompt, task division, and member integration guides
+│   │   ├── core/                     # [Core] Simulation engine, packet model, LPM routing, ARP & bus
+│   │   ├── legacy/                   # [Core] Base step-by-step ARP and routing walkthrough
+│   │   ├── modules/                  # Pluggable feature modules
+│   │   │   ├── _stubs/               # Fallback stubs for unintegrated panels
+│   │   │   ├── packet_inspector/     # [Module] ARP/L2 resolution & Packet Inspector panel
+│   │   │   └── topology/             # [Module] Interactive topology editor & canvas
+│   │   └── ui/                       # [Core] Navigation shell and tab view switcher
+│   ├── scenarios/                    # Reference scenarios and skeleton templates (Groups A–D, X)
+│   ├── schema/                       # JSON schema for scenario validation
+│   └── tests/                        # Unit tests, validator scripts, and Playwright checks
+└── docs/                             # Assignment prompt, task division, and integration guides
 ```
 
 ## Quick Start
