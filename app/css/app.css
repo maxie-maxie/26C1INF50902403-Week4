@@ -517,6 +517,144 @@ main > .view:not(.active) {
   margin: 4px 0;
 }
 
+#viewLab .lab-challenge-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+#viewLab .lab-challenge-check-btn {
+  font-size: 13px;
+  padding: 6px 12px;
+}
+
+#viewLab .lab-challenge-evidence {
+  margin: 12px 0;
+  padding: 10px;
+  background: #f6fafd;
+  border-radius: 8px;
+  border: 1px dashed #b9c8d8;
+}
+
+#viewLab .lab-challenge-reveal {
+  margin: 6px 0;
+  font-size: 13px;
+  color: #3e5064;
+}
+
+#viewLab .lab-challenge-hypotheses {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+#viewLab .lab-challenge-hyp-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+#viewLab .lab-challenge-hyp-item:hover {
+  background: #f6fafd;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+#viewLab .lab-challenge-submit {
+  margin: 12px 0 8px;
+}
+
+#viewLab .lab-challenge-result {
+  margin: 12px 0;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e2eaf2;
+  border-radius: 8px;
+}
+
+#viewLab .lab-challenge-answer {
+  font-weight: 700;
+  color: var(--sim-teal, #0f9d91);
+  margin: 4px 0;
+}
+
+#viewLab .lab-challenge-explanation {
+  font-size: 13px;
+  color: #3e5064;
+  white-space: pre-wrap;
+}
+
+#viewLab .lab-challenge-reset {
+  margin-top: 8px;
+}
+
+#viewLab .lab-topo-ctrl-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+#viewLab .lab-topo-select {
+  font-size: 13px;
+  padding: 6px 8px;
+  min-width: 160px;
+}
+
+#viewLab .lab-topo-cost-input {
+  width: 70px;
+  font-size: 13px;
+  padding: 6px;
+}
+
+#viewLab .lab-topo-cost-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#viewLab .lab-topo-spacer {
+  flex: 1;
+}
+
+#viewLab .lab-topo-summary-container {
+  overflow-x: auto;
+}
+
+#viewLab .lab-topo-summary {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+#viewLab .lab-topo-summary th,
+#viewLab .lab-topo-summary td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid #e7edf4;
+}
+
+#viewLab .lab-topo-summary th {
+  background: #f6fafd;
+  font-weight: 700;
+  color: var(--sim-muted, #65758a);
+}
+
+#viewLab .lab-topo-reset-btn {
+  margin: 8px 0;
+}
+
+#viewLab .lab-compare-line {
+  margin: 4px 0;
+  font-size: 13px;
+  color: #3e5064;
+}
+
 @media (max-width: 1000px) {
   #viewLab .lab-main {
     grid-template-columns: 1fr;

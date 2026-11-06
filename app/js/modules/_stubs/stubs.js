@@ -63,7 +63,7 @@
   }
 
   function stubNote(text) {
-    return h('p', 'lab-stub-note', text || '(chờ tích hợp) — bản dựng tạm, đang hiển thị dữ liệu thô nhận được.');
+    return h('p', 'lab-stub-note', text || 'Bản dựng giản lược — đang hiển thị dữ liệu thô nhận được.');
   }
 
   function currentScenarioTitle(api, scenarioId) {
@@ -170,103 +170,111 @@
     });
   }
 
-  registry.registerPanel('panel_event_timeline', {
-    title: 'Dòng thời gian sự kiện (Network Event Timeline)',
-    mount(el) {
-      timeline.list = h('div', 'lab-timeline');
-      timeline.counter = h('p', 'lab-timeline-count', 'Chưa có sự kiện nào');
-      el.appendChild(stubNote('Đang ghi trực tiếp các sự kiện mô phỏng nhận được.'));
-      el.appendChild(timeline.counter);
-      el.appendChild(timeline.list);
-      timelineRender();
-    },
-    onEvent(evt) {
-      timeline.events.push(evt);
-      timelineRender();
-    },
-    onReset() {
-      timeline.events = [];
-      timelineRender();
-    }
-  });
-
-
-  registry.registerPanel('panel_baseline_compare', {
-    title: 'So sánh cơ sở và sự cố (Baseline vs Failure)',
-    mount(el, api) {
-      const scenarioLine = h('p', 'lab-compare-line');
-      const variantLine = h('p', 'lab-compare-line');
-      el.appendChild(stubNote('Bản đầy đủ sẽ chạy song song trạng thái cơ sở và trạng thái sự cố để đối chiếu.'));
-      el.appendChild(scenarioLine);
-      el.appendChild(variantLine);
-
-      function refresh(snapshot) {
-        scenarioLine.textContent = `Kịch bản: ${currentScenarioTitle(api, snapshot.scenarioId)}`;
-        variantLine.textContent = `Biến thể: ${currentVariantLabel(api, snapshot)}`;
+  if (!NetLab.eventTimeline) {
+    registry.registerPanel('panel_event_timeline', {
+      title: 'Dòng thời gian sự kiện (Network Event Timeline)',
+      mount(el) {
+        timeline.list = h('div', 'lab-timeline');
+        timeline.counter = h('p', 'lab-timeline-count', 'Chưa có sự kiện nào');
+        el.appendChild(stubNote('Đang ghi trực tiếp các sự kiện mô phỏng nhận được.'));
+        el.appendChild(timeline.counter);
+        el.appendChild(timeline.list);
+        timelineRender();
+      },
+      onEvent(evt) {
+        timeline.events.push(evt);
+        timelineRender();
+      },
+      onReset() {
+        timeline.events = [];
+        timelineRender();
       }
-      refresh(api.store.get());
-      api.store.subscribe(refresh);
-    }
-  });
+    });
+  }
 
 
-  registry.registerPanel('panel_troubleshooting', {
-    title: 'Thử thách chẩn đoán (Troubleshooting Challenge)',
-    mount(el, api) {
-      const box = h('div', 'lab-challenge');
-      el.appendChild(stubNote('Bản đầy đủ sẽ cho phép chọn giả thuyết và đối chiếu đáp án.'));
-      el.appendChild(box);
+  if (!NetLab.baselineCompare) {
+    registry.registerPanel('panel_baseline_compare', {
+      title: 'So sánh cơ sở và sự cố (Baseline vs Failure)',
+      mount(el, api) {
+        const scenarioLine = h('p', 'lab-compare-line');
+        const variantLine = h('p', 'lab-compare-line');
+        el.appendChild(stubNote('Bản đầy đủ sẽ chạy song song trạng thái cơ sở và trạng thái sự cố để đối chiếu.'));
+        el.appendChild(scenarioLine);
+        el.appendChild(variantLine);
 
-      function refresh(snapshot) {
-        clearEl(box);
-        const sc = api.registry.getScenario(snapshot.scenarioId);
-        const symptoms = sc && sc.challenge && Array.isArray(sc.challenge.symptoms) ? sc.challenge.symptoms : [];
-        if (symptoms.length === 0) {
-          box.appendChild(h('p', 'lab-challenge-empty', 'Kịch bản hiện tại chưa khai báo triệu chứng để chẩn đoán.'));
-          return;
+        function refresh(snapshot) {
+          scenarioLine.textContent = `Kịch bản: ${currentScenarioTitle(api, snapshot.scenarioId)}`;
+          variantLine.textContent = `Biến thể: ${currentVariantLabel(api, snapshot)}`;
         }
-        box.appendChild(h('h4', 'lab-subtitle', 'Triệu chứng quan sát được'));
-        const ul = h('ul', 'lab-challenge-symptoms');
-        symptoms.slice(0, 4).forEach((s) => ul.appendChild(h('li', null, s)));
-        box.appendChild(ul);
+        refresh(api.store.get());
+        api.store.subscribe(refresh);
       }
-      refresh(api.store.get());
-      api.store.subscribe(refresh);
-    }
-  });
+    });
+  }
+
+
+  if (!NetLab.troubleshootingChallenge) {
+    registry.registerPanel('panel_troubleshooting', {
+      title: 'Thử thách chẩn đoán (Troubleshooting Challenge)',
+      mount(el, api) {
+        const box = h('div', 'lab-challenge');
+        el.appendChild(stubNote('Bản đầy đủ sẽ cho phép chọn giả thuyết và đối chiếu đáp án.'));
+        el.appendChild(box);
+
+        function refresh(snapshot) {
+          clearEl(box);
+          const sc = api.registry.getScenario(snapshot.scenarioId);
+          const symptoms = sc && sc.challenge && Array.isArray(sc.challenge.symptoms) ? sc.challenge.symptoms : [];
+          if (symptoms.length === 0) {
+            box.appendChild(h('p', 'lab-challenge-empty', 'Kịch bản hiện tại chưa khai báo triệu chứng để chẩn đoán.'));
+            return;
+          }
+          box.appendChild(h('h4', 'lab-subtitle', 'Triệu chứng quan sát được'));
+          const ul = h('ul', 'lab-challenge-symptoms');
+          symptoms.slice(0, 4).forEach((s) => ul.appendChild(h('li', null, s)));
+          box.appendChild(ul);
+        }
+        refresh(api.store.get());
+        api.store.subscribe(refresh);
+      }
+    });
+  }
 
 
   const topoPanel = { counts: null, focus: null };
 
-  registry.registerPanel('panel_topology_editor', {
-    title: 'Trình soạn sơ đồ (Topology editor)',
-    mount(el, api) {
-      topoPanel.counts = h('p', 'lab-topo-counts');
-      topoPanel.focus = h('p', 'lab-topo-focus', 'Chưa xem bước nào');
-      el.appendChild(stubNote('Bản đầy đủ sẽ cho phép thêm/sửa thiết bị và liên kết ngay trên sơ đồ.'));
-      el.appendChild(topoPanel.counts);
-      el.appendChild(topoPanel.focus);
+  if (!NetLab.labTopologyPanel) {
+    registry.registerPanel('panel_topology_editor', {
+      title: 'Trình soạn sơ đồ (Topology editor)',
+      mount(el, api) {
+        topoPanel.counts = h('p', 'lab-topo-counts');
+        topoPanel.focus = h('p', 'lab-topo-focus', 'Chưa xem bước nào');
+        el.appendChild(stubNote('Bản đầy đủ sẽ cho phép thêm/sửa thiết bị và liên kết ngay trên sơ đồ.'));
+        el.appendChild(topoPanel.counts);
+        el.appendChild(topoPanel.focus);
 
-      function refresh(snapshot) {
-        const state = snapshot.state;
-        const devs = state && Array.isArray(state.devices) ? state.devices.length : 0;
-        const links = state && Array.isArray(state.links) ? state.links.length : 0;
-        topoPanel.counts.textContent = `Thiết bị: ${devs} — Liên kết: ${links}`;
+        function refresh(snapshot) {
+          const state = snapshot.state;
+          const devs = state && Array.isArray(state.devices) ? state.devices.length : 0;
+          const links = state && Array.isArray(state.links) ? state.links.length : 0;
+          topoPanel.counts.textContent = `Thiết bị: ${devs} — Liên kết: ${links}`;
+        }
+        refresh(api.store.get());
+        api.store.subscribe(refresh);
+      },
+      onStep(step) {
+        if (!topoPanel.focus) return;
+        const target = step.linkId
+          ? `bước ${step.i} trên liên kết ${step.linkId}`
+          : `bước ${step.i} tại ${step.deviceId || 'không xác định'}`;
+        topoPanel.focus.textContent = `Đang xem ${target}`;
+      },
+      onReset() {
+        if (topoPanel.focus) topoPanel.focus.textContent = 'Chưa xem bước nào';
       }
-      refresh(api.store.get());
-      api.store.subscribe(refresh);
-    },
-    onStep(step) {
-      if (!topoPanel.focus) return;
-      const target = step.linkId
-        ? `bước ${step.i} trên liên kết ${step.linkId}`
-        : `bước ${step.i} tại ${step.deviceId || 'không xác định'}`;
-      topoPanel.focus.textContent = `Đang xem ${target}`;
-    },
-    onReset() {
-      if (topoPanel.focus) topoPanel.focus.textContent = 'Chưa xem bước nào';
-    }
-  });
+    });
+  }
 
   NetLab.stubs = { installed: true };
   if (typeof module !== 'undefined' && module.exports) module.exports = { installed: true };

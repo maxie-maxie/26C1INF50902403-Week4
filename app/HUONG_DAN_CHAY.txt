@@ -65,9 +65,22 @@ Thử nhanh:
 
 Quy trình:
 
-1. Chọn **Kịch bản**.
-   - `Kịch bản tham chiếu – hai router giữa LAN văn phòng và LAN máy chủ` là ví dụ đầy đủ.
-   - Năm mục còn lại là khung mẫu trống để viết kịch bản mới.
+1. Chọn **Kịch bản**. Ứng dụng có 14 kịch bản đã tích hợp:
+   - `ref_hai_router` — Kịch bản tham chiếu: hai router giữa LAN văn phòng và LAN máy chủ (3 biến thể).
+   - `case_a1_sai_subnet` — Nhóm A, Case 1: sai subnet mask.
+   - `case_a2_arp_spoofing_nghi_van` — Nhóm A, Case 2: gateway có ánh xạ MAC bất thường (nghi vấn ARP spoofing).
+   - `case_a3_vlan_broadcast` — Nhóm A, Case 3: VLAN và broadcast.
+   - `case_b4_sai_default_gateway` — Nhóm B, Case 4: sai default gateway.
+   - `case_b5_longest_prefix_match` — Nhóm B, Case 5: Longest Prefix Match.
+   - `case_b6_ping_mot_chieu` — Nhóm B, Case 6: ping một chiều (thiếu tuyến về).
+   - `case_b7_vong_lap_dinh_tuyen` — Nhóm B, Case 7: vòng lặp định tuyến và hết TTL.
+   - `case_c8_thuong_mai_dien_tu` — Nhóm C, Case 8: định tuyến tĩnh dự phòng cho thương mại điện tử.
+   - `case_c9_rip_hop_vs_delay` — Nhóm C, Case 9: RIP theo số chặng so với độ trễ.
+   - `case_c10_ospf_dijkstra` — Nhóm C, Case 10: OSPF Dijkstra.
+   - `case_d11_isp_quoc_te` — Nhóm D, Case 11: đa kết nối ISP.
+   - `case_d12_bgp_chinh_sach` — Nhóm D, Case 12: chính sách BGP liên miền.
+   - `case_x13_su_co_bi_an` — Sự cố bí ẩn.
+   Kịch bản tham chiếu `ref_hai_router` là ví dụ đầy đủ nhất để bắt đầu; các kịch bản còn lại minh hoạ từng cơ chế cụ thể.
 2. Chọn **Biến thể**. Với kịch bản tham chiếu:
    - **Bình thường**: cả hai đường WAN hoạt động.
    - **Ngắt liên kết chính**: đường WAN chính bị đứt.
@@ -157,8 +170,8 @@ Phần này chỉ dành cho người muốn kiểm tra lại mã nguồn. Cần 
    Kết quả mong đợi trên bản hiện tại:
 
    ```
-   ℹ tests 75
-   ℹ pass 75
+   ℹ tests 126
+   ℹ pass 126
    ℹ fail 0
    ```
 
@@ -171,9 +184,48 @@ Phần này chỉ dành cho người muốn kiểm tra lại mã nguồn. Cần 
    Kết quả mong đợi:
 
    ```
-   run_all: 9 ca kiểm thử, 9 đạt, 0 thất bại.
+   run_all: 51 ca kiểm thử, 51 đạt, 0 thất bại.
    ```
 
    Lệnh này ghi kết quả chi tiết vào `tests\results.json`.
 
 Chạy `node --test` ngay tại thư mục ứng dụng. Với Node 26.3.0, truyền thêm đường dẫn thư mục (ví dụ `node --test tests`) sẽ báo không tìm thấy mô-đun; Node tự tìm các tệp `*.test.js` khi không có tham số.
+
+## 7. Chạy bằng máy chủ HTTP (tuỳ chọn)
+
+Ứng dụng chạy được trực tiếp từ tệp `index.html` (giao thức `file://`). Nếu muốn dùng máy chủ HTTP cục bộ (ví dụ để tránh hạn chế của trình duyệt hoặc chia sẻ trong mạng LAN):
+
+1. Mở terminal tại thư mục ứng dụng (nơi có `index.html`).
+2. Chạy một trong các lệnh sau:
+
+   ```bat
+   python -m http.server 8000
+   ```
+
+   hoặc (nếu đã cài Node.js):
+
+   ```bat
+   npx serve .
+   ```
+
+3. Mở trình duyệt tại `http://localhost:8000` (hoặc cổng mà lệnh in ra).
+4. Dừng máy chủ bằng Ctrl+C trong terminal.
+
+Máy chủ chỉ phục vụ tệp tĩnh; không cần cơ sở dữ liệu hay cấu hình thêm. Ứng dụng không gọi mạng ra ngoài.
+
+## 8. Chạy kiểm thử Python Playwright (tuỳ chọn)
+
+Kiểm thử khói trên trình duyệt dùng Playwright. Cần Python 3 và Playwright đã cài đặt:
+
+```bat
+pip install playwright
+playwright install chromium
+```
+
+Sau đó chạy từ thư mục ứng dụng:
+
+```bat
+python tests\smoke_test.py
+```
+
+Kết quả mong đợi: tất cả các kiểm thử đạt, 0 lỗi; ảnh chụp màn hình lưu vào `tests\artifacts\`. Kiểm thử này mở trình duyệt, thực hiện các thao tác chạy, dừng, tiến, lùi và kiểm tra hiển thị giao diện.
