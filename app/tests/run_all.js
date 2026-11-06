@@ -12,6 +12,11 @@ require(path.join(APP_DIR, 'js', 'core', 'bus.js'));
 const registry = require(path.join(APP_DIR, 'js', 'core', 'registry.js'));
 require(path.join(APP_DIR, 'js', 'core', 'store.js'));
 const engine   = require(path.join(APP_DIR, 'js', 'core', 'engine.js'));
+
+/* Nạp giao thức định tuyến (rip/ospf/bgp) để loadScenario gọi được computeRoutes */
+const PROTOCOLS_FILE = path.join(APP_DIR, 'js', 'modules', 'protocols', 'routing_protocols.js');
+if (fs.existsSync(PROTOCOLS_FILE)) require(PROTOCOLS_FILE);
+
 const validator = require(path.join(APP_DIR, 'tests', 'validate_scenarios.js'));
 
 /* Nạp tất cả kịch bản trong thư mục scenarios/ — tự đăng ký vào registry */
@@ -96,10 +101,11 @@ allScenarios.forEach(function (sc) {
 
       /* Xây dựng trace từ input của ca kiểm thử */
       var action = {
-        type: tc.input.type,
-        from: tc.input.from,
-        to:   tc.input.to,
-        ttl:  64
+        type:     tc.input.type,
+        from:     tc.input.from,
+        to:       tc.input.to,
+        targetIp: tc.input.targetIp,
+        ttl:      typeof tc.input.ttl === 'number' ? tc.input.ttl : 64
       };
       var trace = engine.build(state, action);
 
